@@ -6,7 +6,7 @@ uses System.SysUtils, System.Math;
 
 function StringToHex(Data: AnsiString): AnsiString;
 function Space(Data: AnsiString): AnsiString;
-function RandStr(len: Integer=8): AnsiString;
+function RandStr(const len: Integer=8): AnsiString;
 
 implementation
 
@@ -39,7 +39,7 @@ begin
   end;
 end;
 
-function RandStr(len: Integer=8): AnsiString;
+function RandStr(const len: Integer=8): AnsiString;
 var
   x, y: Integer;
   Temp, Code: AnsiString;
