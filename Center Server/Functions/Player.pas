@@ -111,7 +111,6 @@ begin
       if CheckList[i].nFile = Loading.CheckList[i2].nFile then
         if CheckList[i].CRC <> Loading.CheckList[i2].CRC then begin
           Logger.Write(Format('Checagem de CRC falhou [Handle: %d]',[Socket.Handle]),Errors);
-          Logger.Write(CheckList[i].CRC,ServerStatus);
           Buffer.BIn:='';
           with Buffer do begin
             Write(Prefix);

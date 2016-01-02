@@ -16,7 +16,7 @@ type
     CLPID_CHECKLIST_REQUEST                 = $001B,
     CLPID_PLAYER_LOGIN                      = $0002,
     CLPID_KEEPALIVE                         = $0000,
-    CLPID_UNKNOWN_11                        = $0011,
+    CLPID_SELECTEDCHAR_REQUEST              = $0011,
     CLPID_UNKNOWN_19                        = $0019,
     CLPID_NOTHING                           = $FFFF
   );

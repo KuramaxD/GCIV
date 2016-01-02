@@ -114,7 +114,7 @@ begin
                 CLPID_HACKLIST_REQUEST: Loading.CompileList(Player);
                 CLPID_PLAYER_LOGIN: Player.LoadLogin;
                 CLPID_CHECKLIST_REQUEST: Loading.CompileCheck(Player);
-                CLPID_UNKNOWN_11: Player.SendSelectedChar;
+                CLPID_SELECTEDCHAR_REQUEST: Player.SendSelectedChar;
                 CLPID_UNKNOWN_19: Unknown.SendUnknown1A(Player);
               else
                 Logger.Write(String(Player.Buffer.BOut),Log.Packets);
