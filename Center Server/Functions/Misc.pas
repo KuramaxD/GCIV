@@ -6,7 +6,7 @@ uses System.SysUtils, System.Math;
 
 function StringToHex(Data: AnsiString): AnsiString;
 function Space(Data: AnsiString): AnsiString;
-function GerarCode: AnsiString;
+function RandStr(len: Integer=8): AnsiString;
 
 implementation
 
@@ -39,15 +39,15 @@ begin
   end;
 end;
 
-function GerarCode: AnsiString;
+function RandStr(len: Integer=8): AnsiString;
 var
   x, y: Integer;
   Temp, Code: AnsiString;
 begin
   Temp:='abcdefghijklmnopqrstuvzywxABCDEFGHIJKLMNOPQRSTUVIYWZ1234567890';
-  for y:=1 to 8 do begin
+  for y:=1 to len do begin
     x:=RandomRange(1,Length(Temp));
-    Code:=Code + AnsiChar(Temp[x]);
+    Code:=Code+AnsiChar(Temp[x]);
   end;
   result:=Code;
 end;
