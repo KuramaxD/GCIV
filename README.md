@@ -1,5 +1,5 @@
 
-http://i.imgur.com/H1qDqPn.png
+<img src="http://i.imgur.com/H1qDqPn.png" />
 
 # GCIV Custom Server
 
