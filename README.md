@@ -1,3 +1,6 @@
+
+http://i.imgur.com/H1qDqPn.png
+
 # GCIV Custom Server
 
 Bem vindo à página do GCIV Custom Server, um servidor para Grand Chase versão Eternal. Esse servidor sempre será uma versão experimental de codar funções do jogo. E acredito que alguém tentará trabalhar nesses arquivos ao invés de ficar esperando por releases.
