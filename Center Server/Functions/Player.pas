@@ -40,11 +40,11 @@ begin
   Self.MySQL:=MySQL;
   ID:=0;
   Buffer:=TCryptLib.Create;
-  Buffer.IV:=#$C7#$D8#$C4#$BF#$B5#$E9#$C0#$FD; //IV padr„o pego do main
-  Buffer.IV2:=#$C0#$D3#$BD#$C3#$B7#$CE#$B8#$B8; //IV2 padr„o pego do main
-  TIV:=GerarCode;
-  TIV2:=GerarCode;
-  Buffer.Prefix:=Copy(GerarCode,1,2);
+  Buffer.IV:=#$C7#$D8#$C4#$BF#$B5#$E9#$C0#$FD; //IV padr√£o pego do main
+  Buffer.IV2:=#$C0#$D3#$BD#$C3#$B7#$CE#$B8#$B8; //IV2 padr√£o pego do main
+  TIV:=RandStr;
+  TIV2:=RandStr;
+  Buffer.Prefix:=Copy(RandStr,1,2);
   Buffer.Count:=0;
   Buffer.BIn:='';
   with Buffer do begin
@@ -161,7 +161,7 @@ begin
   MySQL.Run(1);
   if MySQL.Query.IsEmpty = False then begin
     if (MySQL.Query.Fields[3].AsInteger = 1) or (MySQL.Query.Fields[4].AsInteger = 1) then begin
-      Logger.Write(Format('Usu·rio j· logado [Handle: %d]',[Socket.Handle]),Errors);
+      Logger.Write(Format('Usu√°rio j√° logado [Handle: %d]',[Socket.Handle]),Errors);
       Buffer.BIn:='';
       with Buffer do begin
         Write(Prefix);
