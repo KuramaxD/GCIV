@@ -22,6 +22,8 @@ type
     CLPID_PLAYER_LOGIN                      = $0002,
     CLPID_KEEPALIVE                         = $0000,
     CLPID_CHAT                              = $0006,
+    CLPID_CHANGEGAMESETTINGS                = $001C,
+    CLPID_CHANGEROOMSETTINGS                = $0117,
     CLPID_NOTHING                           = $FFFF,
 
 
@@ -34,6 +36,8 @@ type
     SVPID_INVENTORY                         = $00E0,
     SVPID_SENDVP                            = $0180,
     SVPID_CHAT                              = $0007,
+    SVPID_GAMEUPDATE                        = $001D,
+    SVPID_ROOMUPDATE                        = $0119,
 
     SVPID_UNKNOWN_0611                      = $0611,
     SVPID_UNKNOWN_0414                      = $0414,

@@ -15,6 +15,12 @@ type
     GM_NITEMS = $0001
   );
 
+  TMatchMode = (
+    MM_Match = $0000,
+    MM_DEATHMATCH = $0008,
+    MM_DOTA = $000B
+  );
+
   TMaps = (
     ELVEN_FOREST          = $0000,
     MARSH_OF_OBLIVION     = $0001,
@@ -34,6 +40,13 @@ type
     UNDERWORLD            = $0064
   );
 
+  TSlot = record
+    Active: Boolean;
+    Open: Boolean;
+    Player: TPlayer;
+    Count: Integer;
+  end;
+
 type
   TRoom = record
     Active: Boolean;
@@ -43,7 +56,13 @@ type
     ItemMode: TItemMode;
     isRand: Boolean;
     Map: TMaps;
+    MatchMode: TMatchMode;
+    Players: array[0..5] of TSlot;
+    NCount: Integer;
+
     Users: array of TPlayer;
+
+    function GetLeader: TPlayer;
   end;
 
 type
@@ -58,11 +77,27 @@ type
     procedure Unk(Player: TPlayer);
     procedure Unk2(Player: TPlayer);
     procedure Unk3(Player: TPlayer);
+
+    procedure ChangeGameSettings(Player: TPlayer);
+    procedure ChangeRoomSettings(Player: TPlayer);
   end;
 
 implementation
 
 uses GlobalDefs;
+
+function TRoom.GetLeader: TPlayer;
+var
+  i, i2: Integer;
+begin
+  i2:=Players[Low(Players)].Count;
+  Result:=Players[Low(Players)].Player;
+  for i:=Low(Players)+1 to High(Players) do
+    if i2 > Players[i].Count then begin
+      i2:=Players[i].Count;
+      Result:=Players[i].Player;
+    end;
+end;
 
 procedure TLobby.Chat(Player: TPlayer; Players: TList<TPlayer>);
 var
@@ -96,7 +131,7 @@ end;
 
 procedure TLobby.CreateRoom(Player: TPlayer);
 var
-  i, N: Integer;
+  i, i2, N: Integer;
   Nome, Senha: AnsiString;
   Active: Boolean;
 begin
@@ -120,6 +155,13 @@ begin
         Rooms[i].ItemMode:=GM_WITEMS;
         Rooms[i].isRand:=True;
         Rooms[i].Map:=TEMPLE_OF_FIRE;
+        Rooms[i].MatchMode:=MM_Match;
+        Rooms[i].NCount:=0;
+        for i2:=0 to Length(Rooms[i].Players)-1 do begin
+          Rooms[i].Players[i2].Active:=False;
+          Rooms[i].Players[i2].Open:=True;
+          Rooms[i].Players[i2].Count:=1;
+        end;
         Active:=True;
         N:=i;
         Break;
@@ -133,8 +175,23 @@ begin
       Rooms[Length(Rooms)-1].ItemMode:=GM_WITEMS;
       Rooms[Length(Rooms)-1].isRand:=True;
       Rooms[Length(Rooms)-1].Map:=TEMPLE_OF_FIRE;
+      Rooms[Length(Rooms)-1].MatchMode:=MM_Match;
+      Rooms[Length(Rooms)-1].NCount:=0;
+      for i2:=0 to Length(Rooms[Length(Rooms)-1].Players)-1 do begin
+        Rooms[Length(Rooms)-1].Players[i2].Active:=False;
+        Rooms[Length(Rooms)-1].Players[i2].Open:=True;
+        Rooms[Length(Rooms)-1].Players[i2].Count:=1;
+      end;
       N:=Length(Rooms)-1;
     end;
+
+    //
+    Rooms[N].Players[0].Active:=True;
+    Rooms[N].Players[0].Player:=Player;
+    Inc(Rooms[N].NCount);
+    Rooms[N].Players[0].Count:=Rooms[N].NCount;
+    //
+
     SetLength(Rooms[N].Users,Length(Rooms[N].Users)+1);
     Rooms[N].Users[Length(Rooms[N].Users)-1]:=Player;
     Player.AccInfo.Room:=N;
@@ -232,7 +289,8 @@ begin
             Write(#$00#$00);
             WriteCd(Dword(Length(Senha)*2));
             WriteZd(Senha);
-      Write(#$00#$01#$00#$06#$00#$0B#$05);
+      Write(#$00#$01#$00#$06#$00#$0B);
+      Write(Byte(Rooms[N].MatchMode));
       WriteCd(Dword(Rooms[N].GameMode));
       WriteCd(Dword(Rooms[N].ItemMode));
       Write(Rooms[N].isRand);
@@ -326,8 +384,26 @@ begin
   Player.Buffer.Decompress;
   N:=Player.Buffer.RCw(16);
   Pass:=Player.Buffer.RS(22,Player.Buffer.RB(21));
+
+  //Pra entrar na sala primeiramente tem que saber se nela tem espaço
+  //Se nao esta jogando e tals
+
   if Rooms[N].Active = True then begin
     if Pass = Rooms[N].Pass then begin
+
+      //Vou me inserir de um modo temporário
+      for i:=0 to Length(Rooms[N].Players)-1 do
+        if (Rooms[N].Players[i].Active = False) and (Rooms[N].Players[i].Open = True) then begin
+          Rooms[N].Players[i].Active:=True;
+          Rooms[N].Players[i].Player:=Player;
+          Inc(Rooms[N].NCount);
+          Rooms[N].Players[i].Count:=Rooms[N].NCount;
+          Break;
+        end;
+
+
+
+
       Player.AccInfo.Room:=N;
       Player.AccInfo.Slot:=3;
       Player.AccInfo.Team:=1;
@@ -440,7 +516,8 @@ begin
           Write(#$00#$00);
         WriteCd(Dword(Length(Rooms[N].Pass)*2));
         WriteZd(Rooms[N].Pass);
-        Write(#$00#$02#$00#$06#$00#$0B#$05);
+        Write(#$00#$02#$00#$06#$00#$0B);
+        Write(Byte(Rooms[N].MatchMode));
         WriteCd(Dword(Rooms[N].GameMode));
         WriteCd(Dword(Rooms[N].ItemMode));
         Write(Rooms[N].isRand);
@@ -730,7 +807,8 @@ begin
     WriteCw(Word(38));
     Write(#$00#$00#$00#$00#$00#$52#$3A#$E9#$A2#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
           #$00#$00#$02#$00#$00#$00#$01#$00#$00#$00#$02#$00#$02#$46#$FE#$00#$00#$00#$02#$00#$00#$00#$01#$00#$00#$01#$04#$00#$00#$00+
-          #$6A#$00#$00#$00#$02#$00#$00#$01#$04#$00#$00#$00#$1A#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$05);
+          #$6A#$00#$00#$00#$02#$00#$00#$01#$04#$00#$00#$00#$1A#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00);
+    Write(Byte(Rooms[Player.AccInfo.Room].MatchMode));
     WriteCd(Dword(Rooms[Player.AccInfo.Room].GameMode));
     WriteCd(Dword(Rooms[Player.AccInfo.Room].ItemMode));
     Write(Rooms[Player.AccInfo.Room].isRand);
@@ -753,10 +831,11 @@ begin
     WriteCw(Word(38));
     Write(#$00#$00#$00#$00#$00#$52#$3A#$E9#$A2#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
           #$00#$00#$02#$00#$00#$00#$01#$00#$00#$00#$02#$00#$02#$46#$FE#$00#$00#$00#$02#$00#$00#$00#$01#$00#$00#$01#$04#$00#$00#$00+
-          #$6A#$00#$00#$00#$02#$00#$00#$01#$04#$00#$00#$00#$1A#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$05);
+          #$6A#$00#$00#$00#$02#$00#$00#$01#$04#$00#$00#$00#$1A#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00);
+    Write(Byte(Rooms[Player.AccInfo.Room].MatchMode));
     WriteCd(Dword(Rooms[Player.AccInfo.Room].GameMode));
     WriteCd(Dword(Rooms[Player.AccInfo.Room].ItemMode));
-    Write(#$00);
+    Write(Rooms[Player.AccInfo.Room].isRand);
     WriteCd(Dword(Rooms[Player.AccInfo.Room].Map));
     Write(#$00#$00#$00#$00#$FF#$FF#$FF#$FF#$00#$00#$00#$01#$00#$00#$00#$00#$01#$00+
           #$06#$00#$01#$01#$00#$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
@@ -838,6 +917,97 @@ begin
     ClearPacket();
   end;
   Player.Send;
+end;
+
+procedure TLobby.ChangeGameSettings(Player: TPlayer);
+var
+  GameMode: TGameMode;
+  ItemMode: TItemMode;
+  isRand: Boolean;
+  Map: TMaps;
+  MatchMode: TMatchMode;
+  i: Integer;
+begin
+  if Player.Buffer.RB(6) = $51 then
+    if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) then begin
+      MatchMode:=TMatchMode(Player.Buffer.RB(15));
+      GameMode:=TGameMode(Player.Buffer.RCd(16));
+      ItemMode:=TItemMode(Player.Buffer.RCd(20));
+      isRand:=Player.Buffer.RBo(24);
+      Map:=TMaps(Player.Buffer.RCd(25));
+      if MatchMode in [Low(TMatchMode)..High(TMatchMode)] = False then
+        Exit;
+      if GameMode in [Low(TGameMode)..High(TGameMode)] = False then
+        Exit;
+      if ItemMode in [Low(TItemMode)..High(TItemMode)] = False then
+        Exit;
+      if Map in [Low(TMaps)..High(TMaps)] = False then
+        Exit;
+      Rooms[Player.AccInfo.Room].MatchMode:=MatchMode;
+      Rooms[Player.AccInfo.Room].GameMode:=GameMode;
+      Rooms[Player.AccInfo.Room].ItemMode:=ItemMode;
+      Rooms[Player.AccInfo.Room].Map:=Map;
+      Rooms[Player.AccInfo.Room].isRand:=isRand;
+      for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+        if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+          Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
+          with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
+            Write(Prefix);
+            Write(Dword(Count));
+            WriteCw(Word(SVPID_GAMEUPDATE));
+            Write(#$00#$00#$00#$51#$00#$00#$00#$00#$00#$00+
+                  #$00#$00);
+            Write(Byte(MatchMode));
+            WriteCd(Dword(GameMode));
+            WriteCd(Dword(ItemMode));
+            Write(isRand);
+            WriteCd(Dword(Map));
+            Write(#$00#$00#$00#$00#$FF#$FF#$FF#$FF#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$01#$00#$06#$00+
+                  #$01#$01#$01#$01#$01#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$01#$00#$00#$00#$00);
+            FixSize;
+            Encrypt(GenerateIV(0),Random($FF));
+            ClearPacket();
+          end;
+          Rooms[Player.AccInfo.Room].Players[i].Player.Send;
+        end;
+    end;
+    //Falta 1 esquema aqui
+end;
+
+procedure TLobby.ChangeRoomSettings(Player: TPlayer);
+var
+  NName, NPass: AnsiString;
+  i: Integer;
+begin
+  if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) then begin
+    NName:=Player.Buffer.RS(16,Player.Buffer.RB(15));
+    NPass:=Player.Buffer.RS(20+Player.Buffer.RB(15),Player.Buffer.RB(19+Player.Buffer.RB(15)));
+    Rooms[Player.AccInfo.Room].Name:=NName;
+    Rooms[Player.AccInfo.Room].Pass:=NPass;
+    for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+      if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+        Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
+        with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
+          Write(Prefix);
+          Write(Dword(Count));
+          WriteCw(Word(SVPID_ROOMUPDATE));
+          Write(#$00#$00#$00#$1E#$00#$00#$00#$00#$00);
+          WriteCd(Dword(Length(NName)*2));
+          WriteZd(NName);
+          WriteCd(Dword(Length(NPass)*2));
+          WriteZd(NPass);
+          Write(#$00#$00#$02#$58#$00#$00#$00#$14#$01#$01);
+          FixSize;
+          Encrypt(GenerateIV(0),Random($FF));
+          ClearPacket();
+        end;
+        Rooms[Player.AccInfo.Room].Players[i].Player.Send;
+      end;
+  end;
 end;
 
 end.
