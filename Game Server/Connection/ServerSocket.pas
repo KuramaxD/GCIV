@@ -1,4 +1,4 @@
-unit ServerSocket;
+ï»¿unit ServerSocket;
 
 interface
 
@@ -72,9 +72,6 @@ procedure TServer.OnRead(Sender: TObject; Socket: TCustomWinSocket);
 var
   Player: TPlayer;
   Size, PacketID: Integer;
-
-  temp: ansistring;
-  t: Integer;
 begin
   MainCS.Acquire;
   try
@@ -239,10 +236,6 @@ begin
                 end;
 
                 TCLPID(517): begin
-                  Temp:=AnsiString(AnsiReverseString(String(Copy(Player.Buffer.BOut,1,2))));
-                  Move(Temp[1],t,2);
-                  logger.write('oq é '+inttostr(PacketID)+'deveria ser '+inttostr(t)+'',ServerStatus);
-
                   Player.Buffer.BIn:='';
                   with Player.Buffer do begin
                     Write(Prefix);
@@ -368,10 +361,6 @@ begin
                 end;
 
                 TCLPID(226): begin
-                  Temp:=AnsiString(AnsiReverseString(String(Copy(Player.Buffer.BOut,1,2))));
-                  Move(Temp[1],t,2);
-                  logger.write('oq é '+inttostr(PacketID)+'deveria ser '+inttostr(t)+'',ServerStatus);
-
                   Player.Buffer.BIn:='';
                   with Player.Buffer do begin
                     Write(Prefix);
@@ -387,10 +376,6 @@ begin
                 end;
 
                 TCLPID(871): begin
-                  Temp:=AnsiString(AnsiReverseString(String(Copy(Player.Buffer.BOut,1,2))));
-                  Move(Temp[1],t,2);
-                  logger.write('oq é '+inttostr(PacketID)+'deveria ser '+inttostr(t)+'',ServerStatus);
-
                   Player.Buffer.BIn:='';
                   with Player.Buffer do begin
                     Write(Prefix);
@@ -647,10 +632,6 @@ begin
                 //pt 19
 
                 TCLPID(1012): begin
-                  Temp:=AnsiString(AnsiReverseString(String(Copy(Player.Buffer.BOut,1,2))));
-                  Move(Temp[1],t,2);
-                  logger.write('oq é '+inttostr(PacketID)+'deveria ser '+inttostr(t)+'',ServerStatus);
-
                   Player.Buffer.BIn:='';
                   with Player.Buffer do begin
                     Write(Prefix);
@@ -3386,10 +3367,6 @@ begin
                 end;
 
                 TCLPID(348): begin
-                  Temp:=AnsiString(AnsiReverseString(String(Copy(Player.Buffer.BOut,1,2))));
-                  Move(Temp[1],t,2);
-                  logger.write('oq é '+inttostr(PacketID)+'deveria ser '+inttostr(t)+'',ServerStatus);
-
                   Player.Buffer.BIn:='';
                   with Player.Buffer do begin
                     Write(Prefix);
@@ -3582,11 +3559,6 @@ begin
                 end;
 
                 TCLPID(12): begin
-
-                  Temp:=AnsiString(AnsiReverseString(String(Copy(Player.Buffer.BOut,1,2))));
-                  Move(Temp[1],t,2);
-                  logger.write('oq é '+inttostr(PacketID)+'deveria ser '+inttostr(t)+'',ServerStatus);
-
                   Player.Buffer.BIn:='';
                   with Player.Buffer do begin
                     Write(Prefix);
@@ -3612,7 +3584,7 @@ begin
                 TCLPID(837): Lobby.Unk2(Player);
                 TCLPID(842): Lobby.Unk3(Player);
 
-                TCLPID(40): Lobby.SetReady(Player);
+                CLPID_CHANGEUSERSETTINGS: Lobby.ChangeUserSettings(Player);
                 CLPID_CHAT: Lobby.Chat(Player,Players);
 
                 TCLPID(48): Player.Inventory.Upgrade(Player);

@@ -24,8 +24,8 @@ type
     CLPID_CHAT                              = $0006,
     CLPID_CHANGEGAMESETTINGS                = $001C,
     CLPID_CHANGEROOMSETTINGS                = $0117,
+    CLPID_CHANGEUSERSETTINGS                = $0028,
     CLPID_NOTHING                           = $FFFF,
-
 
 
     CLPID_562                               = $0232
@@ -38,6 +38,7 @@ type
     SVPID_CHAT                              = $0007,
     SVPID_GAMEUPDATE                        = $001D,
     SVPID_ROOMUPDATE                        = $0119,
+    SVPID_USERUPDATE                        = $0029,
 
     SVPID_UNKNOWN_0611                      = $0611,
     SVPID_UNKNOWN_0414                      = $0414,

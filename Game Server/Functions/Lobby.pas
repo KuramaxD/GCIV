@@ -1,4 +1,4 @@
-unit Lobby;
+ï»¿unit Lobby;
 
 interface
 
@@ -73,7 +73,7 @@ type
     procedure ExitRoom(Player: TPlayer);
     procedure SendRooms(Player: TPlayer);
     procedure EnterRoom(Player: TPlayer);
-    procedure SetReady(Player: TPlayer);
+    procedure ChangeUserSettings(Player: TPlayer);
     procedure Unk(Player: TPlayer);
     procedure Unk2(Player: TPlayer);
     procedure Unk3(Player: TPlayer);
@@ -138,7 +138,7 @@ begin
   if Player.AccInfo.Room = -1 then begin
     Player.Buffer.Decompress;
 
-    //Aqui tbm recebe as info geral, char é bacana salvar
+    //Aqui tbm recebe as info geral, char ï¿½ bacana salvar
 
     Nome:=Player.Buffer.RS(18,Player.Buffer.RB(17));
     Senha:=Player.Buffer.RS(24+Player.Buffer.RB(17),Player.Buffer.RB(23+Player.Buffer.RB(17)));
@@ -152,9 +152,9 @@ begin
         Rooms[i].Pass:=Senha;
         Rooms[i].Active:=True;
         Rooms[i].GameMode:=GM_TEAM;
-        Rooms[i].ItemMode:=GM_WITEMS;
-        Rooms[i].isRand:=True;
-        Rooms[i].Map:=TEMPLE_OF_FIRE;
+        Rooms[i].ItemMode:=GM_NITEMS;
+        Rooms[i].isRand:=False;
+        Rooms[i].Map:=KOUNATS_SECRET_ARENA;
         Rooms[i].MatchMode:=MM_Match;
         Rooms[i].NCount:=0;
         for i2:=0 to Length(Rooms[i].Players)-1 do begin
@@ -172,9 +172,9 @@ begin
       Rooms[Length(Rooms)-1].Pass:=Senha;
       Rooms[Length(Rooms)-1].Active:=True;
       Rooms[Length(Rooms)-1].GameMode:=GM_TEAM;
-      Rooms[Length(Rooms)-1].ItemMode:=GM_WITEMS;
-      Rooms[Length(Rooms)-1].isRand:=True;
-      Rooms[Length(Rooms)-1].Map:=TEMPLE_OF_FIRE;
+      Rooms[Length(Rooms)-1].ItemMode:=GM_NITEMS;
+      Rooms[Length(Rooms)-1].isRand:=False;
+      Rooms[Length(Rooms)-1].Map:=KOUNATS_SECRET_ARENA;
       Rooms[Length(Rooms)-1].MatchMode:=MM_Match;
       Rooms[Length(Rooms)-1].NCount:=0;
       for i2:=0 to Length(Rooms[Length(Rooms)-1].Players)-1 do begin
@@ -385,13 +385,13 @@ begin
   N:=Player.Buffer.RCw(16);
   Pass:=Player.Buffer.RS(22,Player.Buffer.RB(21));
 
-  //Pra entrar na sala primeiramente tem que saber se nela tem espaço
+  //Pra entrar na sala primeiramente tem que saber se nela tem espaï¿½o
   //Se nao esta jogando e tals
 
   if Rooms[N].Active = True then begin
     if Pass = Rooms[N].Pass then begin
 
-      //Vou me inserir de um modo temporário
+      //Vou me inserir de um modo temporï¿½rio
       for i:=0 to Length(Rooms[N].Players)-1 do
         if (Rooms[N].Players[i].Active = False) and (Rooms[N].Players[i].Open = True) then begin
           Rooms[N].Players[i].Active:=True;
@@ -744,58 +744,47 @@ begin
     Logger.Write('Sala nao existe',Errors);
 end;
 
-procedure TLobby.SetReady(Player: TPlayer);
+procedure TLobby.ChangeUserSettings(Player: TPlayer);
 var
-  Temp: Integer;
+  i: Integer;
+  Char, Test: Byte;
+  Ready: Boolean;
 begin
   logger.Write(player.Buffer.BOut,packets);
-  Temp:=Player.Buffer.RW(39+Player.Buffer.RB(20));
-
-  Player.Buffer.BIn:='';
-  with Player.Buffer do begin
-    Write(Prefix);
-    Write(Dword(Count));
-    WriteCw(Word(41));
-    Write(#$00#$00#$00#$2D#$00#$00#$00#$00#$00);
-    WriteCd(Dword(Player.AccInfo.ID));
-    Write(#$04#$00#$00#$00);
-    Write(Byte(Length(Player.AccInfo.Login)*2));
-    WriteZd(Player.AccInfo.Login);
-    Write(#$00#$00#$00);
-    Write(Byte(Player.AccInfo.Team));
-    Write(#$00#$00#$00);
-    Write(Byte(Player.AccInfo.Slot));
-    Write(Byte(Player.AccInfo.Char));
-    Write(#$FF#$00#$FF#$00#$FF#$00#$00#$00#$00);
-    Write(Word(Temp));
-    FixSize;
-    Encrypt(GenerateIV(0),Random($FF));
-    ClearPacket();
+  if Player.AccInfo.Room > -1 then begin
+    Char:=Player.Buffer.RB(29+Player.Buffer.RCd(17));
+    Test:=Player.Buffer.RB(30+Player.Buffer.RCd(17));
+    Ready:=Player.Buffer.RBo(39+Player.Buffer.RCd(17));
+    if Player.Chars.isChar(Char) then begin
+      if Test = 255 then
+        Player.AccInfo.Char:=Char;
+      for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+        if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+          Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
+          with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
+            Write(Prefix);
+            Write(Dword(Count));
+            WriteCw(Word(SVPID_USERUPDATE));
+            Write(#$00#$00#$00#$2D#$00#$00#$00#$00#$00);
+            WriteCd(Dword(Player.AccInfo.ID));
+            Write(#$04#$00#$00#$00);
+            Write(Byte(Length(Player.AccInfo.Login)*2));
+            WriteZd(Player.AccInfo.Login);
+            Write(#$00#$00#$00);
+            Write(Byte(Player.AccInfo.Team));
+            Write(#$00#$00#$00);
+            Write(Byte(Player.AccInfo.Slot));
+            Write(Byte(Player.AccInfo.Char));
+            Write(#$FF#$00#$FF#$00#$FF#$00#$00#$00#$00);
+            Write(Word(Ready));
+            FixSize;
+            Encrypt(GenerateIV(0),Random($FF));
+            ClearPacket();
+          end;
+          Rooms[Player.AccInfo.Room].Players[i].Player.Send;
+        end;
+    end;
   end;
-  Player.Send;
-
-  Rooms[Player.AccInfo.Room].Users[0].Buffer.BIn:='';
-  with Rooms[Player.AccInfo.Room].Users[0].Buffer do begin
-    Write(Prefix);
-    Write(Dword(Count));
-    WriteCw(Word(41));
-    Write(#$00#$00#$00#$2D#$00#$00#$00#$00#$00);
-    WriteCd(Dword(Player.AccInfo.ID));
-    Write(#$04#$00#$00#$00);
-    Write(Byte(Length(Player.AccInfo.Login)*2));
-    WriteZd(Player.AccInfo.Login);
-    Write(#$00#$00#$00);
-    Write(Byte(Player.AccInfo.Team));
-    Write(#$00#$00#$00);
-    Write(Byte(Player.AccInfo.Slot));
-    Write(Byte(Player.AccInfo.Char));
-    Write(#$FF#$00#$FF#$00#$FF#$00#$00#$00#$00);
-    Write(Word(Temp));
-    FixSize;
-    Encrypt(GenerateIV(0),Random($FF));
-    ClearPacket();
-  end;
-  Rooms[Player.AccInfo.Room].Users[0].Send;
 end;
 
 procedure TLobby.Unk(Player: TPlayer);
@@ -975,7 +964,36 @@ begin
           Rooms[Player.AccInfo.Room].Players[i].Player.Send;
         end;
     end;
-    //Falta 1 esquema aqui
+  if Player.Buffer.RB(6) = $5B then
+    if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) then begin
+      for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+        if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+          Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
+          with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
+            Write(Prefix);
+            Write(Dword(Count));
+            WriteCw(Word(SVPID_GAMEUPDATE));
+            Write(#$00#$00#$00#$5B#$00#$00#$00#$00#$00#$00+
+                  #$00#$00);
+            Write(Byte(Rooms[Player.AccInfo.Room].MatchMode));
+            WriteCd(Dword(Rooms[Player.AccInfo.Room].GameMode));
+            WriteCd(Dword(Rooms[Player.AccInfo.Room].ItemMode));
+            Write(Rooms[Player.AccInfo.Room].isRand);
+            WriteCd(Dword(Rooms[Player.AccInfo.Room].Map));
+            Write(#$00#$00#$00#$00#$FF#$FF#$FF#$FF#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$01#$00#$06#$00+
+                  #$01#$01#$01#$01#$01#$00#$00#$00#$05#$01+
+                  #$01#$02#$01#$03#$01#$04#$01#$05#$01#$00+
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$01#$00#$00#$00#$00);
+            FixSize;
+            Encrypt(GenerateIV(0),Random($FF));
+            ClearPacket();
+          end;
+          Rooms[Player.AccInfo.Room].Players[i].Player.Send;
+        end;
+    end;
 end;
 
 procedure TLobby.ChangeRoomSettings(Player: TPlayer);

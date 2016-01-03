@@ -65,6 +65,7 @@ end;
 
 destructor TPlayer.Destroy;
 begin
+  AccInfo.Update;
   Buffer.Free;
   inherited;
 end;
