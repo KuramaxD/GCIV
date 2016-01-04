@@ -50,6 +50,8 @@ begin
   try
     for Player in Players do
       if Player.Socket = Socket then begin
+        if Player.AccInfo.Room > -1 then
+          Lobby.ExitRoom(Player);
         if Player.ID > 0 then begin
           MySQL.SetQuery('UPDATE Users SET ONLINE = 0 WHERE ID = :ID');
           MySQL.AddParameter('ID',AnsiString(IntToStr(Player.ID)));
@@ -3576,7 +3578,7 @@ begin
                 TCLPID(16): Lobby.SendRooms(Player);
                 TCLPID(20): Lobby.EnterRoom(Player);
                 TCLPID(24): Lobby.CreateRoom(Player);
-                TCLPID(33): Lobby.ExitRoom(Player);
+                CLPID_EXITROOMREQUEST: Lobby.ExitRoom(Player);
                 CLPID_CHANGEGAMESETTINGS: Lobby.ChangeGameSettings(Player);
                 CLPID_CHANGEROOMSETTINGS: Lobby.ChangeRoomSettings(Player);
                 CLPID_REQUESTGAMEINFO: Lobby.SendGameInformation(Player);

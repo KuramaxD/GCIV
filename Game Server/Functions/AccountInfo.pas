@@ -15,7 +15,6 @@ type
       Char: Integer;
       Room: Integer;
       Slot: Integer;
-      Team: Integer;
       constructor Create(ID: Integer; MySQL: TQuery);
       procedure Update;
   end;

@@ -1,4 +1,4 @@
-unit Player;
+﻿unit Player;
 
 interface
 
@@ -333,19 +333,21 @@ var
   Data: PAnsiChar;
   DataLen, Sent: Integer;
 begin
-  Data:=PAnsiChar(Buffer.BIn);
-  DataLen:=Length(Buffer.BIn);
-  while DataLen > 0 do begin
-    Sent:=Socket.SendBuf(Data^, DataLen);
-    if Sent > 0 then begin
-      Inc(Data,Sent);
-      Dec(DataLen,Sent);
+  if Socket.Connected then begin
+    Data:=PAnsiChar(Buffer.BIn);
+    DataLen:=Length(Buffer.BIn);
+    while DataLen > 0 do begin
+      Sent:=Socket.SendBuf(Data^, DataLen);
+      if Sent > 0 then begin
+        Inc(Data,Sent);
+        Dec(DataLen,Sent);
+      end;
     end;
+    if Buffer.Count = $FFFF then
+      Buffer.Count:=1
+    else
+      Inc(Buffer.Count,1);
   end;
-  if Buffer.Count = $FFFF then
-    Buffer.Count:=1
-  else
-    Inc(Buffer.Count,1);
 end;
 
 end.

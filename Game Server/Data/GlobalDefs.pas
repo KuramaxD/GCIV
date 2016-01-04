@@ -29,6 +29,7 @@ type
     CLPID_LOADINFO                          = $034A,
     CLPID_REQUESTGAMEINFO                   = $0024,
     CLPID_CHANGEUSERSETTINGS                = $0028,
+    CLPID_EXITROOMREQUEST                  = $0021,
     CLPID_NOTHING                           = $FFFF,
 
 
@@ -46,6 +47,7 @@ type
     SVPID_LOADSYNC                          = $034A,
     SVPID_GAMEINFORMATION                   = $0026,
     SVPID_PLAYSIGN                          = $0349,
+    SVPID_EXITROOM                         = $0022,
     SVPID_USERUPDATE                        = $0029,
 
     SVPID_UNKNOWN_0611                      = $0611,
