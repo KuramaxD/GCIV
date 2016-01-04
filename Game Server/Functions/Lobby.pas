@@ -2,7 +2,7 @@
 
 interface
 
-uses Player, System.Generics.Collections, Windows, Log;
+uses Player, System.Generics.Collections, Windows, Log, System.SysUtils;
 
 type
   TGameMode = (
@@ -74,9 +74,10 @@ type
     procedure SendRooms(Player: TPlayer);
     procedure EnterRoom(Player: TPlayer);
     procedure ChangeUserSettings(Player: TPlayer);
-    procedure Unk(Player: TPlayer);
-    procedure Unk2(Player: TPlayer);
-    procedure Unk3(Player: TPlayer);
+    procedure SendGameInformation(Player: TPlayer);
+    procedure SendPlayersInGame(Player: TPlayer);
+    procedure LoadSync(Player: TPlayer);
+    procedure PlaySign(Player: TPlayer);
 
     procedure ChangeGameSettings(Player: TPlayer);
     procedure ChangeRoomSettings(Player: TPlayer);
@@ -787,125 +788,125 @@ begin
   end;
 end;
 
-procedure TLobby.Unk(Player: TPlayer);
+procedure TLobby.SendGameInformation(Player: TPlayer);
+var
+  i: Integer;
 begin
-  Player.Buffer.BIn:='';
-  with Player.Buffer do begin
-    Write(Prefix);
-    Write(Dword(Count));
-    WriteCw(Word(38));
-    Write(#$00#$00#$00#$00#$00#$52#$3A#$E9#$A2#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-          #$00#$00#$02#$00#$00#$00#$01#$00#$00#$00#$02#$00#$02#$46#$FE#$00#$00#$00#$02#$00#$00#$00#$01#$00#$00#$01#$04#$00#$00#$00+
-          #$6A#$00#$00#$00#$02#$00#$00#$01#$04#$00#$00#$00#$1A#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00);
-    Write(Byte(Rooms[Player.AccInfo.Room].MatchMode));
-    WriteCd(Dword(Rooms[Player.AccInfo.Room].GameMode));
-    WriteCd(Dword(Rooms[Player.AccInfo.Room].ItemMode));
-    Write(Rooms[Player.AccInfo.Room].isRand);
-    WriteCd(Dword(Rooms[Player.AccInfo.Room].Map));
-    Write(#$00#$00#$00#$00#$FF#$FF#$FF#$FF#$00#$00#$00#$01#$00#$00#$00#$00#$01#$00+
-          #$06#$00#$01#$01#$00#$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-          #$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$02#$00#$02+
-          #$35#$05#$01#$00#$00#$09#$60#$00#$00#$00#$02#$00#$00#$00#$03#$E8#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-          #$00#$00#$00);
-    Compress;
-    Encrypt(GenerateIV(0),Random($FF));
-    ClearPacket();
-  end;
-  Player.Send;
-
-  Rooms[Player.AccInfo.Room].Users[1].Buffer.BIn:='';
-  with Rooms[Player.AccInfo.Room].Users[1].Buffer do begin
-    Write(Prefix);
-    Write(Dword(Count));
-    WriteCw(Word(38));
-    Write(#$00#$00#$00#$00#$00#$52#$3A#$E9#$A2#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-          #$00#$00#$02#$00#$00#$00#$01#$00#$00#$00#$02#$00#$02#$46#$FE#$00#$00#$00#$02#$00#$00#$00#$01#$00#$00#$01#$04#$00#$00#$00+
-          #$6A#$00#$00#$00#$02#$00#$00#$01#$04#$00#$00#$00#$1A#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00);
-    Write(Byte(Rooms[Player.AccInfo.Room].MatchMode));
-    WriteCd(Dword(Rooms[Player.AccInfo.Room].GameMode));
-    WriteCd(Dword(Rooms[Player.AccInfo.Room].ItemMode));
-    Write(Rooms[Player.AccInfo.Room].isRand);
-    WriteCd(Dword(Rooms[Player.AccInfo.Room].Map));
-    Write(#$00#$00#$00#$00#$FF#$FF#$FF#$FF#$00#$00#$00#$01#$00#$00#$00#$00#$01#$00+
-          #$06#$00#$01#$01#$00#$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-          #$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$02#$00#$02+
-          #$35#$05#$01#$00#$00#$09#$60#$00#$00#$00#$02#$00#$00#$00#$03#$E8#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-          #$00#$00#$00);
-    Compress;
-    Encrypt(GenerateIV(0),Random($FF));
-    ClearPacket();
-  end;
-  Rooms[Player.AccInfo.Room].Users[1].Send;
+  //Checa se está na sala e se está como "jogando"
+  if (Player.AccInfo.Room > -1) then
+    for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+      if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+        Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
+        with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
+          Write(Prefix);
+          Write(Dword(Count));
+          WriteCw(Word(SVPID_GAMEINFORMATION));
+          Write(#$00#$00#$00#$00#$00#$52#$3A#$E9#$A2#$00+
+                #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                #$00#$00#$02#$00#$00#$00#$01#$00#$00#$00+
+                #$02#$00#$02#$46#$FE#$00#$00#$00#$02#$00+
+                #$00#$00#$01#$00#$00#$01#$04#$00#$00#$00+
+                #$6A#$00#$00#$00#$02#$00#$00#$01#$04#$00+
+                #$00#$00#$1A#$00#$00#$00#$00#$00#$00#$00+
+                #$01#$00#$00#$00#$00#$00#$00#$00);
+          Write(Byte(Rooms[Player.AccInfo.Room].MatchMode));
+          WriteCd(Dword(Rooms[Player.AccInfo.Room].GameMode));
+          WriteCd(Dword(Rooms[Player.AccInfo.Room].ItemMode));
+          Write(Rooms[Player.AccInfo.Room].isRand);
+          WriteCd(Dword(Rooms[Player.AccInfo.Room].Map));
+          Write(#$00#$00#$00#$00#$FF#$FF#$FF#$FF#$00#$00+
+                #$00#$01#$00#$00#$00#$00#$01#$00#$06#$00+
+                #$01#$01#$00#$01#$01#$00#$00#$00#$00#$00+
+                #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                #$00#$00#$00#$00#$00#$01#$00#$00#$00#$00+
+                #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                #$00#$00#$00#$00#$00#$02#$00#$02#$35#$05+
+                #$01#$00#$00#$09#$60#$00#$00#$00#$02#$00+
+                #$00#$00#$03#$E8#$00#$00#$00#$00#$00#$00+
+                #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                #$00);
+          Compress;
+          Encrypt(GenerateIV(0),Random($FF));
+          ClearPacket();
+        end;
+        Rooms[Player.AccInfo.Room].Players[i].Player.Send;
+      end;
 end;
 
-procedure TLobby.Unk2(Player: TPlayer);
+procedure TLobby.SendPlayersInGame(Player: TPlayer);
+var
+  i, pCount: Integer;
 begin
-  Player.Buffer.BIn:='';
-  with Player.Buffer do begin
-    Write(Prefix);
-    Write(Dword(Count));
-    WriteCw(Word(838));
-    Write(#$00#$00#$00#$14#$00#$00#$00#$00#$02#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$02#$00#$00#$00#$00);
-    FixSize;
-    Encrypt(GenerateIV(0),Random($FF));
-    ClearPacket();
+  if Player.AccInfo.Room > -1 then begin
+    pCount:=0;
+    for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+      if Rooms[Player.AccInfo.Room].Players[i].Active = True then
+        Inc(pCount);
+    Player.Buffer.BIn:='';
+    with Player.Buffer do begin
+      Write(Prefix);
+      Write(Dword(Count));
+      WriteCw(Word(SVPID_PLAYERSINGAME));
+      Write(#$00#$00#$00#$14#$00);
+      WriteCd(Dword(pCount));
+      for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+        if Rooms[Player.AccInfo.Room].Players[i].Active = True then begin
+          WriteCd(Dword(Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.ID));
+          Write(#$00#$00#$00#$00);
+        end;
+      FixSize;
+      Encrypt(GenerateIV(0),Random($FF));
+      ClearPacket();
+    end;
+    Player.Send;
   end;
-  Player.Send;
 end;
 
-procedure TLobby.Unk3(Player: TPlayer);
+procedure TLobby.LoadSync(Player: TPlayer);
+var
+  ID, Percent, i: Integer;
 begin
-  Player.Buffer.BIn:='';
-  with Player.Buffer do begin
-    Write(Prefix);
-    Write(Dword(Count));
-    WriteCw(Word(842));
-    Write(#$00#$00#$00#$08#$00);
-    WriteCd(Dword(1));
-    Write(#$00#$00#$00#$11);
-    FixSize;
-    Encrypt(GenerateIV(0),Random($FF));
-    ClearPacket();
+  //Checa se a sala está jogando
+  if Player.AccInfo.Room > -1 then begin
+    ID:=Player.Buffer.RCd(8);
+    Percent:=Player.Buffer.RCd(12);
+    for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+      if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+        Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
+        with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
+          Write(Prefix);
+          Write(Dword(Count));
+          WriteCw(Word(SVPID_LOADSYNC));
+          Write(#$00#$00#$00#$08#$00);
+          WriteCd(Dword(ID));
+          WriteCd(Dword(Percent));
+          FixSize;
+          Encrypt(GenerateIV(0),Random($FF));
+          ClearPacket();
+        end;
+        Rooms[Player.AccInfo.Room].Players[i].Player.Send;
+      end;
   end;
-  Player.Send;
+end;
 
-  Player.Buffer.BIn:='';
-  with Player.Buffer do begin
-    Write(Prefix);
-    Write(Dword(Count));
-    WriteCw(Word(842));
-    Write(#$00#$00#$00#$08#$00);
-    WriteCd(Dword(2));
-    Write(#$00#$00#$00#$11);
-    FixSize;
-    Encrypt(GenerateIV(0),Random($FF));
-    ClearPacket();
+procedure TLobby.PlaySign(Player: TPlayer);
+begin
+  //Checa se a sala está jogando
+  if Player.AccInfo.Room > -1 then begin
+    Player.Buffer.BIn:='';
+    with Player.Buffer do begin
+      Write(Prefix);
+      Write(Dword(Count));
+      WriteCw(Word(SVPID_PLAYSIGN));
+      Write(#$00#$00#$00#$00#$00);
+      Compress;
+      Encrypt(GenerateIV(0),Random($FF));
+      ClearPacket();
+    end;
+    Player.Send;
   end;
-  Player.Send;
-
-  Player.Buffer.BIn:='';
-  with Player.Buffer do begin
-    Write(Prefix);
-    Write(Dword(Count));
-    WriteCw(Word(841));
-    Write(#$00#$00#$00#$10#$01#$04#$00#$00#$00#$78#$01#$63#$60#$60#$60#$00#$00#$00#$04#$00#$01);
-    //FixSize;
-    Encrypt(GenerateIV(0),Random($FF));
-    ClearPacket();
-  end;
-  Player.Send;
-
-  Player.Buffer.BIn:='';
-  with Player.Buffer do begin
-    Write(Prefix);
-    Write(Dword(Count));
-    WriteCw(Word(838));
-    Write(#$00#$00#$00#$14#$00#$00#$00#$00#$02#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$02#$00#$00#$00#$00);
-    FixSize;
-    Encrypt(GenerateIV(0),Random($FF));
-    ClearPacket();
-  end;
-  Player.Send;
 end;
 
 procedure TLobby.ChangeGameSettings(Player: TPlayer);

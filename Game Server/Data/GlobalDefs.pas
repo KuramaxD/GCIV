@@ -24,6 +24,10 @@ type
     CLPID_CHAT                              = $0006,
     CLPID_CHANGEGAMESETTINGS                = $001C,
     CLPID_CHANGEROOMSETTINGS                = $0117,
+    CLPID_REQUESTPLAYERSINGAME              = $0345,
+    CLPID_REQUESTPLAYSIGN                   = $0027,
+    CLPID_LOADINFO                          = $034A,
+    CLPID_REQUESTGAMEINFO                   = $0024,
     CLPID_CHANGEUSERSETTINGS                = $0028,
     CLPID_NOTHING                           = $FFFF,
 
@@ -38,6 +42,10 @@ type
     SVPID_CHAT                              = $0007,
     SVPID_GAMEUPDATE                        = $001D,
     SVPID_ROOMUPDATE                        = $0119,
+    SVPID_PLAYERSINGAME                     = $0346,
+    SVPID_LOADSYNC                          = $034A,
+    SVPID_GAMEINFORMATION                   = $0026,
+    SVPID_PLAYSIGN                          = $0349,
     SVPID_USERUPDATE                        = $0029,
 
     SVPID_UNKNOWN_0611                      = $0611,

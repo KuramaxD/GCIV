@@ -3579,10 +3579,10 @@ begin
                 TCLPID(33): Lobby.ExitRoom(Player);
                 CLPID_CHANGEGAMESETTINGS: Lobby.ChangeGameSettings(Player);
                 CLPID_CHANGEROOMSETTINGS: Lobby.ChangeRoomSettings(Player);
-
-                TCLPID(36): Lobby.Unk(Player);
-                TCLPID(837): Lobby.Unk2(Player);
-                TCLPID(842): Lobby.Unk3(Player);
+                CLPID_REQUESTGAMEINFO: Lobby.SendGameInformation(Player);
+                CLPID_REQUESTPLAYERSINGAME: Lobby.SendPlayersInGame(Player);
+                CLPID_LOADINFO: Lobby.LoadSync(Player);
+                CLPID_REQUESTPLAYSIGN: Lobby.PlaySign(Player);
 
                 CLPID_CHANGEUSERSETTINGS: Lobby.ChangeUserSettings(Player);
                 CLPID_CHAT: Lobby.Chat(Player,Players);
