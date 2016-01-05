@@ -3585,6 +3585,8 @@ begin
                 CLPID_REQUESTPLAYERSINGAME: Lobby.SendPlayersInGame(Player);
                 CLPID_LOADINFO: Lobby.LoadSync(Player);
                 CLPID_REQUESTPLAYSIGN: Lobby.PlaySign(Player);
+                TCLPID($83): Lobby.KickUser(Player);
+                TCLPID(825): ;
 
                 CLPID_CHANGEUSERSETTINGS: Lobby.ChangeUserSettings(Player);
                 CLPID_CHAT: Lobby.Chat(Player,Players);

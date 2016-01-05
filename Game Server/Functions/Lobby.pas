@@ -45,6 +45,7 @@ type
     Open: Boolean;
     Player: TPlayer;
     Count: Integer;
+    LoadStatus: Integer;
   end;
 
 type
@@ -59,6 +60,7 @@ type
     MatchMode: TMatchMode;
     Players: array[0..5] of TSlot;
     NCount: Integer;
+    TotalKicks: Integer;
     function GetLeader: TPlayer;
     function PlayersNumber: Integer;
     function PlayerSlot(Player: TPlayer): Integer;
@@ -81,6 +83,7 @@ type
     procedure PlaySign(Player: TPlayer);
     procedure ChangeGameSettings(Player: TPlayer);
     procedure ChangeRoomSettings(Player: TPlayer);
+    procedure KickUser(Player: TPlayer);
   end;
 
 implementation
@@ -123,7 +126,7 @@ var
 begin
   Result:=0;
   for i:=0 to Length(Players)-1 do
-    if Players[i].Player = Player then begin
+    if (Players[i].Player = Player) and (Players[i].Active = True) then begin
       Result:=i;
       Break;
     end;
@@ -145,11 +148,11 @@ var
 begin
   Result:=0;
   for i:=0 to 2 do
-    if Players[i].Player = Player then
+    if (Players[i].Player = Player) and (Players[i].Active = True) then
       Exit;
   Result:=1;
   for i:=3 to 5 do
-    if Players[i].Player = Player then
+    if (Players[i].Player = Player) and (Players[i].Active = True) then
       Exit;
 end;
 
@@ -210,10 +213,12 @@ begin
         Rooms[i].Map:=KOUNATS_SECRET_ARENA;
         Rooms[i].MatchMode:=MM_Match;
         Rooms[i].NCount:=0;
+        Rooms[i].TotalKicks:=3;
         for i2:=0 to Length(Rooms[i].Players)-1 do begin
           Rooms[i].Players[i2].Active:=False;
           Rooms[i].Players[i2].Open:=True;
           Rooms[i].Players[i2].Count:=0;
+          Rooms[i].Players[i2].LoadStatus:=0;
         end;
         Active:=True;
         N:=i;
@@ -230,10 +235,12 @@ begin
       Rooms[Length(Rooms)-1].Map:=KOUNATS_SECRET_ARENA;
       Rooms[Length(Rooms)-1].MatchMode:=MM_Match;
       Rooms[Length(Rooms)-1].NCount:=0;
+      Rooms[Length(Rooms)-1].TotalKicks:=3;
       for i2:=0 to Length(Rooms[Length(Rooms)-1].Players)-1 do begin
         Rooms[Length(Rooms)-1].Players[i2].Active:=False;
         Rooms[Length(Rooms)-1].Players[i2].Open:=True;
         Rooms[Length(Rooms)-1].Players[i2].Count:=0;
+        Rooms[Length(Rooms)-1].Players[i2].LoadStatus:=0;
       end;
       N:=Length(Rooms)-1;
     end;
@@ -241,12 +248,12 @@ begin
     //
     Rooms[N].Players[0].Active:=True;
     Rooms[N].Players[0].Player:=Player;
+    Rooms[N].Players[0].Open:=False;
     Inc(Rooms[N].NCount);
     Rooms[N].Players[0].Count:=Rooms[N].NCount;
     //
 
     Player.AccInfo.Room:=N;
-    Player.AccInfo.Slot:=0;
 
     Player.Buffer.BIn:='';
     with Player.Buffer do begin
@@ -339,14 +346,18 @@ begin
             Write(#$00#$00);
             WriteCd(Dword(Length(Senha)*2));
             WriteZd(Senha);
-      Write(#$00#$01#$00#$06#$00#$0B);
+      WriteCw(Word(Rooms[N].PlayersNumber));
+      WriteCw(Word(Rooms[N].FreeSlots+Rooms[N].PlayersNumber));
+      Write(#$00#$0B);
       Write(Byte(Rooms[N].MatchMode));
       WriteCd(Dword(Rooms[N].GameMode));
       WriteCd(Dword(Rooms[N].ItemMode));
       Write(Rooms[N].isRand);
       WriteCd(Dword(Rooms[N].Map));
-      Write(#$00#$00#$00#$0C#$00#$01#$01#$01#$01#$01+
-            #$FF#$FF#$FF#$FF#$00#$00#$00#$00#$00#$00#$00#$00#$01);
+      Write(#$00#$00#$00#$0C);
+      for i:=0 to Length(Rooms[N].Players)-1 do
+        Write(Rooms[N].Players[i].Open);
+      Write(#$FF#$FF#$FF#$FF#$00#$00#$00#$00#$00#$00#$00#$00#$01);
       WriteCd(Dword(UDP_RELAYIP));
       WriteCw(Word(UDP_RELAYPORT));
       WriteCd(Dword(TCP_RELAYIP));
@@ -390,24 +401,38 @@ begin
       Leader:=False;
       if Rooms[Player.AccInfo.Room].GetLeader = Player then
         Leader:=True;
-      //Me removo da sala
       for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
         if Rooms[Player.AccInfo.Room].Players[i].Player = Player then begin
           Rooms[Player.AccInfo.Room].Players[i].Active:=False;
           Rooms[Player.AccInfo.Room].Players[i].Count:=0;
+          Rooms[Player.AccInfo.Room].Players[i].Open:=True;
+          Rooms[Player.AccInfo.Room].Players[i].Player:=TPlayer(-1);
           Break;
         end;
-
-      //Envia pra todos que eu sai e quem é o novo lider
       for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
         if Rooms[Player.AccInfo.Room].Players[i].Active then begin
-
+          Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
+          with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
+            Write(Prefix);
+            Write(Dword(Count));
+            WriteCw(Word(SVPID_EXITSIGN));
+            Write(#$00);
+            WriteCd(Dword(Length(Player.AccInfo.Login)*2));
+            WriteZd(Player.AccInfo.Login);
+            Write(#$00#$00#$00#$00);
+            WriteCd(Dword(Player.AccInfo.ID));
+            WriteCd(Dword(3));
+            Compress;
+            Encrypt(GenerateIV(0),Random($FF));
+            ClearPacket();
+          end;
+          Rooms[Player.AccInfo.Room].Players[i].Player.Send;
           if Leader = True then begin
             Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
             with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
               Write(Prefix);
               Write(Dword(Count));
-              WriteCw(Word($80));
+              WriteCw(Word(SVPID_CHANGELEADER));
               Write(#$00#$00#$00#$05#$00);
               WriteCd(Dword(Rooms[Player.AccInfo.Room].GetLeader.AccInfo.ID));
               Write(Byte(1));
@@ -417,27 +442,10 @@ begin
             end;
             Rooms[Player.AccInfo.Room].Players[i].Player.Send;
           end;
-
-          Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
-          with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
-            Write(Prefix);
-            Write(Dword(Count));
-            WriteCw(Word($81));
-            Write(#$00);
-            WriteCd(Dword(Length(Player.AccInfo.Nick)*2));
-            WriteZd(Player.AccInfo.Nick);
-            Write(#$00#$00#$00#$00);
-            WriteCd(Dword(Player.AccInfo.ID));
-            WriteCd(Dword(3));
-            Compress;
-            Encrypt(GenerateIV(0),Random($FF));
-            ClearPacket();
-          end;
-          Rooms[Player.AccInfo.Room].Players[i].Player.Send;
         end;
-
+      if Leader = True then
+        Rooms[Player.AccInfo.Room].TotalKicks:=3;
       Player.AccInfo.Room:=-1;
-      //Envia que eu sai
       Player.Buffer.BIn:='';
       with Player.Buffer do begin
         Write(Prefix);
@@ -475,7 +483,9 @@ begin
           Write(#$01#$00);
         WriteCd(Dword(Length(Rooms[i].Pass)*2));
         WriteZd(Rooms[i].Pass);
-        Write(#$00#$06#$00#$01#$00#$2E#$02#$1B#$25#$01#$00#$00#$00#$00#$01#$6B#$F9#$38#$77#$00#$00#$00#$0C#$00#$00#$00#$00#$00#$00#$00+
+        WriteCw(Word(Rooms[i].FreeSlots+Rooms[i].PlayersNumber));
+        WriteCw(Word(Rooms[i].PlayersNumber));
+        Write(#$00#$2E#$02#$1B#$25#$01#$00#$00#$00#$00#$01#$6B#$F9#$38#$77#$00#$00#$00#$0C#$00#$00#$00#$00#$00#$00#$00+
               #$01);
         WriteCd(Dword(Length(Rooms[i].GetLeader.AccInfo.Nick)*2));
         WriteZd(Rooms[i].GetLeader.AccInfo.Nick);
@@ -502,10 +512,8 @@ begin
   Player.Buffer.Decompress;
   N:=Player.Buffer.RCw(16);
   Pass:=Player.Buffer.RS(22,Player.Buffer.RB(21));
-
   //Se nao esta jogando e tals
-
-  if (Rooms[N].Active = True) and (Rooms[N].PlayersNumber < Rooms[N].FreeSlots) then begin
+  if (Rooms[N].Active = True) and (Rooms[N].FreeSlots > 0) then begin
     if Pass = Rooms[N].Pass then begin
       NSerdin:=0;
       for i:=0 to 2 do
@@ -516,31 +524,28 @@ begin
         if (Rooms[N].Players[i].Active = False) and (Rooms[N].Players[i].Open = True) then
           Inc(NCanaban);
       if NCanaban > NSerdin then begin
-        logger.Write('entrei canaban',ServerStatus);
         for i:=3 to 5 do
           if (Rooms[N].Players[i].Active = False) and (Rooms[N].Players[i].Open = True) then begin
             Rooms[N].Players[i].Active:=True;
             Rooms[N].Players[i].Player:=Player;
+            Rooms[N].Players[i].Open:=False;
             Inc(Rooms[N].NCount);
             Rooms[N].Players[i].Count:=Rooms[N].NCount;
             Break;
           end;
       end
       else begin
-        logger.Write('serdin',ServerStatus);
         for i:=0 to 2 do
           if (Rooms[N].Players[i].Active = False) and (Rooms[N].Players[i].Open = True) then begin
             Rooms[N].Players[i].Active:=True;
             Rooms[N].Players[i].Player:=Player;
+            Rooms[N].Players[i].Open:=False;
             Inc(Rooms[N].NCount);
             Rooms[N].Players[i].Count:=Rooms[N].NCount;
             Break;
           end;
       end;
-
       Player.AccInfo.Room:=N;
-      Player.AccInfo.Slot:=3;
-
       for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
         if (Rooms[Player.AccInfo.Room].Players[i].Active) and (Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.ID <> Player.AccInfo.ID) then begin
           Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
@@ -633,7 +638,6 @@ begin
           end;
           Rooms[Player.AccInfo.Room].Players[i].Player.Send;
         end;
-
       Player.Buffer.BIn:='';
       with Player.Buffer do begin
         Write(Prefix);
@@ -650,14 +654,17 @@ begin
         WriteCd(Dword(Length(Rooms[N].Pass)*2));
         WriteZd(Rooms[N].Pass);
         WriteCw(Word(Rooms[N].PlayersNumber));
-        Write(#$00#$06#$00#$0B);
+        WriteCw(Word(Rooms[N].FreeSlots));
+        Write(#$00#$0B);
         Write(Byte(Rooms[N].MatchMode));
         WriteCd(Dword(Rooms[N].GameMode));
         WriteCd(Dword(Rooms[N].ItemMode));
         Write(Rooms[N].isRand);
         WriteCd(Dword(Rooms[N].Map));
-        Write(#$00#$00#$00#$0C#$00#$01#$01#$00#$01#$01+
-              #$FF#$FF#$FF#$FF#$00#$00#$00#$00#$00#$00#$00#$00#$01);
+        Write(#$00#$00#$00#$0C);
+        for i:=0 to Length(Rooms[N].Players)-1 do
+          Write(Rooms[N].Players[i].Open);
+        Write(#$FF#$FF#$FF#$FF#$00#$00#$00#$00#$00#$00#$00#$00#$01);
         WriteCd(Dword(UDP_RELAYIP));
         WriteCw(Word(UDP_RELAYPORT));
         WriteCd(Dword(TCP_RELAYIP));
@@ -671,7 +678,6 @@ begin
         ClearPacket();
       end;
       Player.Send;
-
       NCount:=0;
       for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
         if Rooms[Player.AccInfo.Room].Players[i].Active then begin
@@ -692,92 +698,47 @@ begin
             WriteZd(Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.Nick);
             WriteCd(Dword(i));
             Write(Byte(Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.Char));
-            if Rooms[Player.AccInfo.Room].GetLeader = Rooms[Player.AccInfo.Room].Players[i].Player then
-            Write(#$00#$FF#$00#$FF#$00#$FF#$00#$00#$00#$00#$00#$01#$00#$00#$00#$0D#$00#$00#$00#$00#$1F#$D1#$00#$00#$00#$00#$00#$4E#$00#$00+
-                  #$00#$07#$00#$00#$00#$01#$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$08#$00#$00#$00#$01#$01#$01#$00#$00#$00#$00#$00#$00+
-                  #$00#$00#$00#$09#$00#$00#$00#$01#$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0A#$00#$00#$00#$01#$01#$01#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$0B#$00#$00#$00#$01#$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0C#$00#$00#$00#$01#$01#$01#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$0D#$00#$00#$00#$01#$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0E#$00#$00#$00#$01#$01#$01+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$0F#$00#$00#$00#$01#$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$10#$00#$00#$00#$01+
-                  #$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$11#$00#$00#$00#$01#$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$12#$00#$00+
-                  #$00#$01#$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$13#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00#$00#$00#$00#$00#$14+
-                  #$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00#$00#$00#$00#$00#$15#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00#$00#$00#$00+
-                  #$00#$16#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00#$00#$00#$00#$00#$17#$00#$00#$00#$01#$07#$01#$00#$01#$00#$00#$00#$00+
-                  #$00#$00#$00#$18#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00#$00#$00#$00#$00#$19#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02+
-                  #$00#$00#$00#$00#$00#$1A#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00#$00#$00#$00#$00#$1B#$00#$00#$00#$01#$07#$01#$00#$01+
-                  #$00#$02#$00#$00#$00#$00#$00#$1D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$1E#$00#$00#$00#$01#$07#$01#$00+
-                  #$01#$00#$02#$00#$00#$00#$00#$00#$24#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00#$00#$00#$00#$00#$27#$00#$00#$00#$01#$03+
-                  #$01#$00#$00#$00#$01#$00#$00#$00#$00#$00#$28#$00#$00#$00#$01#$03#$01#$00#$00#$00#$01#$00#$00#$00#$00#$00#$29#$00#$00#$00+
-                  #$01#$03#$01#$00#$00#$00#$01#$00#$00#$00#$00#$00#$2A#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00#$00#$00#$00#$00#$2B#$00+
-                  #$00#$00#$01#$03#$01#$00#$00#$00#$01#$00#$00#$00#$00#$00#$2C#$00#$00#$00#$01#$03#$01#$00#$00#$00#$01#$00#$00#$00#$00#$00+
-                  #$2D#$00#$00#$00#$01#$03#$01#$00#$00#$00#$01#$00#$00#$00#$00#$00#$2E#$00#$00#$00#$01#$03#$01#$00#$00#$00#$01#$00#$00#$00+
-                  #$00#$00#$2F#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00#$00#$00#$00#$00#$30#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00+
-                  #$00#$00#$00#$00#$31#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00#$00#$00#$00#$00#$32#$00#$00#$00#$01#$07#$01#$00#$01#$00+
-                  #$02#$00#$00#$00#$00#$00#$33#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00#$00#$00#$00#$00#$34#$00#$00#$00#$01#$07#$01#$00+
-                  #$01#$00#$02#$00#$00#$00#$00#$00#$35#$00#$00#$00#$01#$07#$01#$00#$01#$00#$02#$00#$00#$00#$00#$00#$36#$00#$00#$00#$01#$07+
-                  #$01#$00#$01#$00#$02#$00#$00#$00#$00#$00#$37#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$38#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$39#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3A#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3C#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3E#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$40#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$43#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$44#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$45#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$46#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$47#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$48#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$49#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$4A#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$4B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$4C#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$4E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$4F#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$50#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$51#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$52#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$53#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$54#$00#$00#$00#$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$55#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$56#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$57#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$58#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$59#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5B#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5D#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5F#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$01#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00)
-
-            else
             Write(#$00#$FF#$00#$FF#$00#$FF#$00#$00#$00#$00#$01#$01#$00#$00#$00#$0D#$00#$00#$00#$00#$10#$F4#$00#$00#$00#$00#$00#$4E#$00#$00+
-              #$00#$07#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$08#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$09#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$0B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$0D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$0F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$10#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$11#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$12#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$13#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$14#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$15#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$16#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$17#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$18#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$19#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$1A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$1B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$1D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$1E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$24#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$27#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$28#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$29#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$2A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$2B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$2C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$2D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$2E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$2F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$30#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$31#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$32#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$33#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$34#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$35#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$36#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$37#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$38#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$39#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$3B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$3D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$3F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$40#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$43#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$44#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$45#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$46#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$47#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$48#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$49#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$4A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$4B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$4C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$4E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$4F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$50#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$51#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$52#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$53#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$54#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$55#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$56#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$57#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$58#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$59#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$5A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$5C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$5E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01+
-              #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00);
+                  #$00#$07#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$08#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$09#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$0B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$0D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$0F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$10#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$11#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$12#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$13#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$14#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$15#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$16#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$17#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$18#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$19#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$1A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$1B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$1D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$1E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$24#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$27#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$28#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$29#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$2A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$2B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$2C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$2D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$2E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$2F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$30#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$31#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$32#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$33#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$34#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$35#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$36#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$37#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$38#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$39#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$3B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$3D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$3F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$40#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$43#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$44#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$45#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$46#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$47#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$48#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$49#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$4A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$4B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$4C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$4E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$4F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$50#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$51#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$52#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$53#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$54#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$55#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$56#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$57#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$58#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$59#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$5A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$5C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$5E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01+
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00);
             Write(Byte(Length(Rooms[Player.AccInfo.Room].Players[i].Player.Chars.Chars)));
             for i2:=0 to Length(Rooms[Player.AccInfo.Room].Players[i].Player.Chars.Chars)-1 do begin
               Write(Byte(Rooms[Player.AccInfo.Room].Players[i].Player.Chars.Chars[i2].CharID));
@@ -886,7 +847,6 @@ procedure TLobby.SendGameInformation(Player: TPlayer);
 var
   i, i2: Integer;
 begin
-  Logger.Write('what',ServerStatus);
   //Checa se está na sala e se está como "jogando"
   if (Player.AccInfo.Room > -1) then
     for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
@@ -919,8 +879,13 @@ begin
           Write(Rooms[Player.AccInfo.Room].isRand);
           WriteCd(Dword(Rooms[Player.AccInfo.Room].Map));
           Write(#$00#$00#$00#$00#$FF#$FF#$FF#$FF#$00#$00+
-                #$00#$01#$00#$00#$00#$00#$01#$00#$06#$00+
-                #$01#$01#$00#$01#$01#$00#$00#$00#$00#$00+
+                #$00#$01#$00#$00#$00);
+
+          WriteCw(Word(Rooms[Player.AccInfo.Room].PlayersNumber));
+          WriteCw(Word(Rooms[Player.AccInfo.Room].FreeSlots));
+          for i2:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+              Write(Rooms[Player.AccInfo.Room].Players[i2].Open);
+          Write(#$00#$00#$00#$00#$00+
                 #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                 #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                 #$00#$00#$00#$00#$00#$01#$00#$00#$00#$00+
@@ -978,6 +943,8 @@ begin
     Percent:=Player.Buffer.RCd(12);
     for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
       if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+        if Rooms[Player.AccInfo.Room].Players[i].Player = Player then
+          Rooms[Player.AccInfo.Room].Players[i].LoadStatus:=Percent;
         Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
         with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
           Write(Prefix);
@@ -996,20 +963,29 @@ begin
 end;
 
 procedure TLobby.PlaySign(Player: TPlayer);
+var
+  i: Integer;
 begin
   //Checa se a sala está jogando
   if Player.AccInfo.Room > -1 then begin
-    Player.Buffer.BIn:='';
-    with Player.Buffer do begin
-      Write(Prefix);
-      Write(Dword(Count));
-      WriteCw(Word(SVPID_PLAYSIGN));
-      Write(#$00#$00#$00#$00#$00);
-      Compress;
-      Encrypt(GenerateIV(0),Random($FF));
-      ClearPacket();
-    end;
-    Player.Send;
+    for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+      if Rooms[Player.AccInfo.Room].Players[i].Active then
+        if Rooms[Player.AccInfo.Room].Players[i].LoadStatus < 17 then
+          Exit;
+    for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+      if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+        Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
+        with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
+          Write(Prefix);
+          Write(Dword(Count));
+          WriteCw(Word(SVPID_PLAYSIGN));
+          Write(#$00#$00#$00#$00#$00);
+          Compress;
+          Encrypt(GenerateIV(0),Random($FF));
+          ClearPacket();
+        end;
+        Rooms[Player.AccInfo.Room].Players[i].Player.Send;
+      end;
   end;
 end;
 
@@ -1017,12 +993,12 @@ procedure TLobby.ChangeGameSettings(Player: TPlayer);
 var
   GameMode: TGameMode;
   ItemMode: TItemMode;
-  isRand: Boolean;
+  isRand, Active1, Active2: Boolean;
   Map: TMaps;
   MatchMode: TMatchMode;
-  i: Integer;
+  i, i2, Slot1, Slot2: Integer;
 begin
-  if Player.Buffer.RB(6) = $51 then
+  if (Player.Buffer.RB(6) = $51) then
     if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) then begin
       MatchMode:=TMatchMode(Player.Buffer.RB(15));
       GameMode:=TGameMode(Player.Buffer.RCd(16));
@@ -1059,8 +1035,10 @@ begin
             Write(#$00#$00#$00#$00#$FF#$FF#$FF#$FF#$00#$00+
                   #$00#$00#$00#$00#$00);
             WriteCw(Word(Rooms[Player.AccInfo.Room].PlayersNumber));
-            Write(#$00#$06#$00+
-                  #$01#$01#$01#$01#$01#$00#$00#$00#$00#$00+
+            WriteCw(Word(Rooms[Player.AccInfo.Room].FreeSlots));
+            for i2:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+              Write(Rooms[Player.AccInfo.Room].Players[i2].Open);
+            Write(#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$01#$00#$00#$00#$00);
@@ -1090,12 +1068,66 @@ begin
             Write(#$00#$00#$00#$00#$FF#$FF#$FF#$FF#$00#$00+
                   #$00#$00#$00#$00#$00);
             WriteCw(Word(Rooms[Player.AccInfo.Room].PlayersNumber));
-            Write(#$00#$06#$00+
-                  #$01#$01#$01#$01#$01#$00#$00#$00#$05#$01+
-                  #$01#$02#$01#$03#$01#$04#$01#$05#$01#$00+
+            WriteCw(Word(Rooms[Player.AccInfo.Room].FreeSlots));
+            for i2:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+              Write(Rooms[Player.AccInfo.Room].Players[i2].Open);
+            Write(#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$01#$00#$00#$00#$00);
+            {Write(#$00#$00#$00#$05#$01+
+                  #$01#$02#$01#$03#$01#$04#$01#$05#$01#$00+
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$01#$00#$00#$00#$00); }
+            FixSize;
+            Encrypt(GenerateIV(0),Random($FF));
+            ClearPacket();
+          end;
+          Rooms[Player.AccInfo.Room].Players[i].Player.Send;
+        end;
+    end;
+  if Player.Buffer.RB(6) = $55 then
+    if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) then begin
+      Slot1:=Player.Buffer.RB(58);
+      Active1:=Player.Buffer.RBo(59);
+      Slot2:=Player.Buffer.RB(60);
+      Active2:=Player.Buffer.RBo(61);
+      if (Rooms[Player.AccInfo.Room].Players[Slot1].Active = False) and (Rooms[Player.AccInfo.Room].Players[Slot2].Active = False) then begin
+        Rooms[Player.AccInfo.Room].Players[Slot1].Open:=Active1;
+        Rooms[Player.AccInfo.Room].Players[Slot2].Open:=Active2;
+      end
+      else
+        Exit;
+      for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+        if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+          Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
+          with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
+            Write(Prefix);
+            Write(Dword(Count));
+            WriteCw(Word(SVPID_GAMEUPDATE));
+            Write(#$00#$00#$00#$55#$00#$00#$00#$00#$00#$00+
+                  #$00#$00);
+            Write(Byte(Rooms[Player.AccInfo.Room].MatchMode));
+            WriteCd(Dword(Rooms[Player.AccInfo.Room].GameMode));
+            WriteCd(Dword(Rooms[Player.AccInfo.Room].ItemMode));
+            Write(Rooms[Player.AccInfo.Room].isRand);
+            WriteCd(Dword(Rooms[Player.AccInfo.Room].Map));
+            Write(#$00#$00#$00#$00#$FF#$FF#$FF#$FF#$00#$00+
+                  #$00#$00#$00#$00#$00);
+            WriteCw(Word(Rooms[Player.AccInfo.Room].PlayersNumber));
+            WriteCw(Word(Rooms[Player.AccInfo.Room].FreeSlots));
+            for i2:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+              Write(Rooms[Player.AccInfo.Room].Players[i2].Open);
+            Write(#$00#$00#$00#$02);
+            Write(Byte(Slot1));
+            Write(Active1);
+            Write(Byte(Slot2));
+            Write(Active2);
+            Write(#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$01#$00#$00#$00+
+                  #$00);
             FixSize;
             Encrypt(GenerateIV(0),Random($FF));
             ClearPacket();
@@ -1135,6 +1167,70 @@ begin
         Rooms[Player.AccInfo.Room].Players[i].Player.Send;
       end;
   end;
+end;
+
+procedure TLobby.KickUser(Player: TPlayer);
+var
+  SlotID, i: Integer;
+  Login: AnsiString;
+begin
+  //checa se está jogando
+  if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) then
+    if Rooms[Player.AccInfo.Room].TotalKicks > 0 then begin
+      Login:=Player.Buffer.RS(16,Player.Buffer.RCd(12));
+      SlotID:=-1;
+      for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+        if Rooms[Player.AccInfo.Room].Players[i].Active then
+          if Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.Login = Login then begin
+            SlotID:=i;
+            Break;
+          end;
+      if SlotID = -1 then
+        Exit;
+
+
+      if Rooms[Player.AccInfo.Room].Players[SlotID].Active = True then begin
+
+        Player.Buffer.BIn:='';
+        with Player.Buffer do begin
+          Write(Prefix);
+          Write(Dword(Count));
+          WriteCw(Word(SVPID_EXITSIGN));
+          Write(#$00);
+          WriteCd(Dword(Length(Rooms[Player.AccInfo.Room].Players[SlotID].Player.AccInfo.Login)*2));
+          WriteZd(Rooms[Player.AccInfo.Room].Players[SlotID].Player.AccInfo.Login);
+          WriteCd(Dword(3));
+          WriteCd(Dword(Rooms[Player.AccInfo.Room].Players[SlotID].Player.AccInfo.ID));
+          WriteCd(Dword(Rooms[Player.AccInfo.Room].TotalKicks-1));
+          Compress;
+          Encrypt(GenerateIV(0),Random($FF));
+          ClearPacket();
+        end;
+        Player.Send;
+        //Envia o kick pro player
+        Rooms[Player.AccInfo.Room].Players[SlotID].Player.Buffer.BIn:='';
+        with Rooms[Player.AccInfo.Room].Players[SlotID].Player.Buffer do begin
+          Write(Prefix);
+          Write(Dword(Count));
+          WriteCw(Word(SVPID_EXITSIGN));
+          Write(#$00#$00#$00#$1C#$00);
+          WriteCd(Dword(Length(Rooms[Player.AccInfo.Room].Players[SlotID].Player.AccInfo.Login)*2));
+          WriteZd(Rooms[Player.AccInfo.Room].Players[SlotID].Player.AccInfo.Login);
+          WriteCd(Dword(3));
+          WriteCd(Dword(Rooms[Player.AccInfo.Room].Players[SlotID].Player.AccInfo.ID));
+          Write(#$00#$2C#$30#$E8);
+          FixSize;
+          Encrypt(GenerateIV(0),Random($FF));
+          ClearPacket();
+        end;
+        Rooms[Player.AccInfo.Room].Players[SlotID].Player.Send;
+
+        Dec(Rooms[Player.AccInfo.Room].TotalKicks);
+        Rooms[Player.AccInfo.Room].Players[SlotID].Active:=False;
+        Rooms[Player.AccInfo.Room].Players[SlotID].Count:=0;
+        Rooms[Player.AccInfo.Room].Players[SlotID].Player.AccInfo.Room:=-1;
+      end;
+    end;
 end;
 
 end.

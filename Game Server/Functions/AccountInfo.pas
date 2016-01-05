@@ -14,7 +14,6 @@ type
       Nick: AnsiString;
       Char: Integer;
       Room: Integer;
-      Slot: Integer;
       constructor Create(ID: Integer; MySQL: TQuery);
       procedure Update;
   end;
