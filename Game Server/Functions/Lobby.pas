@@ -46,6 +46,7 @@ type
     Player: TPlayer;
     Count: Integer;
     LoadStatus: Integer;
+    Ready: Boolean;
   end;
 
 type
@@ -61,6 +62,7 @@ type
     Players: array[0..5] of TSlot;
     NCount: Integer;
     TotalKicks: Integer;
+    Playing: Boolean;
     function GetLeader: TPlayer;
     function PlayersNumber: Integer;
     function PlayerSlot(Player: TPlayer): Integer;
@@ -199,7 +201,6 @@ begin
 
     Nome:=Player.Buffer.RS(18,Player.Buffer.RB(17));
     Senha:=Player.Buffer.RS(24+Player.Buffer.RB(17),Player.Buffer.RB(23+Player.Buffer.RB(17)));
-
     N:=0;
     Active:=False;
     for i:=0 to Length(Rooms)-1 do
@@ -214,6 +215,7 @@ begin
         Rooms[i].MatchMode:=MM_Match;
         Rooms[i].NCount:=0;
         Rooms[i].TotalKicks:=3;
+        Rooms[i].Playing:=False;
         for i2:=0 to Length(Rooms[i].Players)-1 do begin
           Rooms[i].Players[i2].Active:=False;
           Rooms[i].Players[i2].Open:=True;
@@ -236,6 +238,7 @@ begin
       Rooms[Length(Rooms)-1].MatchMode:=MM_Match;
       Rooms[Length(Rooms)-1].NCount:=0;
       Rooms[Length(Rooms)-1].TotalKicks:=3;
+      Rooms[Length(Rooms)-1].Playing:=False;
       for i2:=0 to Length(Rooms[Length(Rooms)-1].Players)-1 do begin
         Rooms[Length(Rooms)-1].Players[i2].Active:=False;
         Rooms[Length(Rooms)-1].Players[i2].Open:=True;
@@ -244,17 +247,12 @@ begin
       end;
       N:=Length(Rooms)-1;
     end;
-
-    //
     Rooms[N].Players[0].Active:=True;
     Rooms[N].Players[0].Player:=Player;
     Rooms[N].Players[0].Open:=False;
     Inc(Rooms[N].NCount);
     Rooms[N].Players[0].Count:=Rooms[N].NCount;
-    //
-
     Player.AccInfo.Room:=N;
-
     Player.Buffer.BIn:='';
     with Player.Buffer do begin
       Write(Prefix);
@@ -332,20 +330,19 @@ begin
       end;
       Write(#$00#$00#$00#$04#$13#$00#$A8#$C0#$01#$EC#$A8#$C0#$9B#$BA#$FE#$A9);
       WriteCd(Dword(Player.Socket.RemoteAddr.sin_addr.S_addr));
-      Write(#$00#$00#$00#$01#$7E#$F5#$00#$00#$00#$00+
-            #$00#$00#$00#$00#$00#$00#$00#$02#$00#$00#$00#$00#$00#$00#$E5#$6A#$00#$00#$00#$01#$2C#$5B#$A7#$BD#$00#$00#$00#$00#$01#$00+
-            #$00#$E5#$88#$00#$00#$00#$01#$2C#$5B#$A7#$BE#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-            #$00#$00#$00#$00#$00#$00#$00#$0B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$56#$86#$32#$00#$56#$87+
-            #$6E#$37#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-            #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00+
-            #$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$46#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00+
-            #$00#$00#$00#$00#$00#$00#$00);
-            WriteCd(Dword(N));
-            WriteCd(Dword(Length(Nome)*2));
-            WriteZd(Nome);
-            Write(#$00#$00);
-            WriteCd(Dword(Length(Senha)*2));
-            WriteZd(Senha);
+      Write(#$00#$00#$00#$01#$7E#$F5#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$02#$00#$00#$00#$00#$00#$00#$E5#$6A#$00#$00#$00#$01+
+            #$2C#$5B#$A7#$BD#$00#$00#$00#$00#$01#$00#$00#$E5#$88#$00#$00#$00#$01#$2C#$5B#$A7#$BE#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+            #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+            #$00#$00#$00#$01#$56#$86#$32#$00#$56#$87#$6E#$37#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+            #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+            #$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$46#$00+
+            #$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00);
+      WriteCd(Dword(N));
+      WriteCd(Dword(Length(Nome)*2));
+      WriteZd(Nome);
+      Write(#$00#$00);
+      WriteCd(Dword(Length(Senha)*2));
+      WriteZd(Senha);
       WriteCw(Word(Rooms[N].PlayersNumber));
       WriteCw(Word(Rooms[N].FreeSlots+Rooms[N].PlayersNumber));
       Write(#$00#$0B);
@@ -362,10 +359,9 @@ begin
       WriteCw(Word(UDP_RELAYPORT));
       WriteCd(Dword(TCP_RELAYIP));
       WriteCw(Word(TCP_RELAYPORT));
-      Write(#$01#$00#$01#$00#$00+
-            #$01#$2C#$00#$00#$00#$14#$00#$02#$4B#$52#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-            #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$06#$01#$00#$00#$00+
-            #$00);
+      Write(#$01#$00#$01#$00#$00#$01#$2C#$00#$00#$00#$14#$00#$02#$4B#$52#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+            #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+            #$06#$01#$00#$00#$00#$00);
       Compress;
       Encrypt(GenerateIV(0),Random($FF));
       ClearPacket();
@@ -485,18 +481,23 @@ begin
         WriteZd(Rooms[i].Pass);
         WriteCw(Word(Rooms[i].FreeSlots+Rooms[i].PlayersNumber));
         WriteCw(Word(Rooms[i].PlayersNumber));
-        Write(#$00#$2E#$02#$1B#$25#$01#$00#$00#$00#$00#$01#$6B#$F9#$38#$77#$00#$00#$00#$0C#$00#$00#$00#$00#$00#$00#$00+
-              #$01);
+        Write(Rooms[i].Playing);
+        Write(#$2E#$02#$1B#$25#$01#$00#$00#$00#$00#$01+
+              #$6B#$F9#$38#$77#$00#$00#$00#$0C#$00#$00+
+              #$00#$00#$00#$00#$00#$01);
         WriteCd(Dword(Length(Rooms[i].GetLeader.AccInfo.Nick)*2));
         WriteZd(Rooms[i].GetLeader.AccInfo.Nick);
-        Write(#$0B#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00+
+        Write(#$0B#$00#$00#$00#$00#$00#$01#$00#$00#$00+
+              #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+              #$00#$00#$00#$00#$01#$00#$00#$00#$00#$00+
               #$00#$00#$00#$00#$00#$00#$00#$01);
       end;
     Compress;
     Temp:=Copy(Player.Buffer.BIn,10,Length(Player.Buffer.BIn));
     Player.Buffer.BIn:=Copy(Player.Buffer.BIn,1,8);
     WriteCd(Dword(Length(Temp)+13));
-    Write(#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$00);
+    Write(#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+          #$00#$00#$01#$00);
     Write(Temp);
     Encrypt(GenerateIV(0),Random($FF));
     ClearPacket();
@@ -512,8 +513,7 @@ begin
   Player.Buffer.Decompress;
   N:=Player.Buffer.RCw(16);
   Pass:=Player.Buffer.RS(22,Player.Buffer.RB(21));
-  //Se nao esta jogando e tals
-  if (Rooms[N].Active = True) and (Rooms[N].FreeSlots > 0) then begin
+  if (Rooms[N].Active = True) and (Rooms[N].FreeSlots > 0) and (Rooms[N].Playing = False) then begin
     if Pass = Rooms[N].Pass then begin
       NSerdin:=0;
       for i:=0 to 2 do
@@ -562,7 +562,9 @@ begin
             WriteZd(Player.AccInfo.Nick);
             WriteCd(Dword(Rooms[Player.AccInfo.Room].PlayerSlot(Player)));
             Write(Byte(Player.AccInfo.Char));
-            Write(#$00#$FF#$00#$FF#$00#$FF#$00#$00#$00#$00#$01#$01#$00#$00#$00#$0D#$00#$00#$00#$00#$10#$F4#$00#$00#$00#$00#$00#$4E#$00#$00+
+            Write(#$00#$FF#$00#$FF#$00#$FF#$00#$00#$00#$00);
+            Write(Byte(Rooms[Player.AccInfo.Room].Team(Player)));
+            Write(#$01#$00#$00#$00#$0D#$00#$00#$00#$00#$10#$F4#$00#$00#$00#$00#$00#$4E#$00#$00+
                   #$00#$07#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$08#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$09#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$0B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
@@ -624,14 +626,13 @@ begin
             end;
             Write(#$00#$00#$00#$04#$13#$00#$A8#$C0#$01#$EC#$A8#$C0#$9B#$BA#$FE#$A9);
             WriteCd(Dword(Player.Socket.RemoteAddr.sin_addr.S_addr));
-            Write(#$00#$00#$00#$01#$7E#$F6#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$02#$00#$00#$00#$00#$00#$00#$E5#$6A#$00#$00#$00#$01#$2C#$BD#$52#$5A#$00#$00#$00#$00#$01#$00+
-                  #$00#$E5#$88#$00#$00#$00#$01#$2C#$BD#$52#$5B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$56#$86#$32#$00#$56#$87+
-                  #$6E#$D4#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00+
-                  #$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00);
+            Write(#$00#$00#$00#$01#$7E#$F6#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$02#$00#$00#$00#$00#$00#$00#$E5#$6A#$00#$00#$00#$01+
+                  #$2C#$BD#$52#$5A#$00#$00#$00#$00#$01#$00#$00#$E5#$88#$00#$00#$00#$01#$2C#$BD#$52#$5B#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$01#$56#$86#$32#$00#$56#$87#$6E#$D4#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$00+
+                  #$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00);
             Compress;
             Encrypt(GenerateIV(0),Random($FF));
             ClearPacket();
@@ -669,10 +670,9 @@ begin
         WriteCw(Word(UDP_RELAYPORT));
         WriteCd(Dword(TCP_RELAYIP));
         WriteCw(Word(TCP_RELAYPORT));
-        Write(#$01#$00#$01#$00#$00+
-              #$01#$2C#$00#$00#$00#$14#$00#$02#$4B#$52#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-              #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$06#$01#$00#$00#$00+
-              #$00);
+        Write(#$01#$00#$01#$00#$00#$01#$2C#$00#$00#$00#$14#$00#$02#$4B#$52#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+              #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+              #$06#$01#$00#$00#$00#$00);
         FixSize;
         Encrypt(GenerateIV(0),Random($FF));
         ClearPacket();
@@ -689,16 +689,16 @@ begin
             Write(#$00#$00#$00#$00#$00);
             WriteCd(Dword(Rooms[Player.AccInfo.Room].PlayersNumber));
             WriteCd(Dword(NCount));
-            Write(#$00#$00#$00);
-            Write(Byte(Length(Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.Login)*2));
+            WriteCd(Dword(Length(Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.Login)*2));
             WriteZd(Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.Login);
             WriteCd(Dword(Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.ID));
-            Write(#$00#$00#$00);
-            Write(Byte(Length(Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.Nick)*2));
+            WriteCd(Dword(Length(Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.Nick)*2));
             WriteZd(Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.Nick);
             WriteCd(Dword(i));
             Write(Byte(Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.Char));
-            Write(#$00#$FF#$00#$FF#$00#$FF#$00#$00#$00#$00#$01#$01#$00#$00#$00#$0D#$00#$00#$00#$00#$10#$F4#$00#$00#$00#$00#$00#$4E#$00#$00+
+            Write(#$00#$FF#$00#$FF#$00#$FF#$00#$00#$00#$00);
+            Write(Byte(Rooms[Player.AccInfo.Room].Team(Rooms[Player.AccInfo.Room].Players[i].Player)));
+            Write(#$01#$00#$00#$00#$0D#$00#$00#$00#$00#$10#$F4#$00#$00#$00#$00#$00#$4E#$00#$00+
                   #$00#$07#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$08#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$09#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$0B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$0C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
@@ -737,8 +737,12 @@ begin
                   #$00#$58#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$59#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$5A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$5C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                  #$00#$5E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00);
+                  #$00#$5E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00);
+            if Rooms[Player.AccInfo.Room].GetLeader = Rooms[Player.AccInfo.Room].Players[i].Player then
+              Write(#$01)
+            else
+              Write(#$00);
+            Write(#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00);
             Write(Byte(Length(Rooms[Player.AccInfo.Room].Players[i].Player.Chars.Chars)));
             for i2:=0 to Length(Rooms[Player.AccInfo.Room].Players[i].Player.Chars.Chars)-1 do begin
               Write(Byte(Rooms[Player.AccInfo.Room].Players[i].Player.Chars.Chars[i2].CharID));
@@ -760,13 +764,14 @@ begin
             end;
             Write(#$00#$00#$00#$04#$13#$00#$A8#$C0#$01#$EC#$A8#$C0#$9B#$BA#$FE#$A9);
             WriteCd(Dword(Rooms[Player.AccInfo.Room].Players[i].Player.Socket.RemoteAddr.sin_addr.S_addr));
-            Write(#$00#$00#$00#$01#$7E#$F5#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$02#$00#$00#$00#$00#$00#$00#$E5#$6A#$00#$00#$00#$01#$2C#$5B#$A7#$BD#$00#$00#$00#$00#$01#$00+
-                  #$00#$E5#$88#$00#$00#$00#$01#$2C#$5B#$A7#$BE#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$0B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$56#$86#$32#$00#$56#$87+
-                  #$6E#$37#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+            Write(#$00#$00#$00#$01#$7E#$F5#$00#$00#$00);
+            Write(Rooms[Player.AccInfo.Room].Players[i].Ready);
+            Write(#$00#$00#$00#$00#$00#$00#$00#$02#$00#$00#$00#$00#$00#$00#$E5#$6A#$00#$00#$00#$01#$2C#$BD#$52#$5A#$00#$00#$00#$00#$01#$00+
+                  #$00#$E5#$88#$00#$00#$00#$01#$2C#$BD#$52#$5B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$56#$86#$32#$00#$56#$87+
+                  #$6E#$D4#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00+
-                  #$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$46#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$00#$00#$00#$00);
             Compress;
             Encrypt(GenerateIV(0),Random($FF));
@@ -817,6 +822,9 @@ begin
         Player.AccInfo.Char:=Char;
       for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
         if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+          if Rooms[Player.AccInfo.Room].Players[i].Player = Player then
+            if Test = 255 then
+              Rooms[Player.AccInfo.Room].Players[i].Ready:=Ready;
           Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
           with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
             Write(Prefix);
@@ -847,8 +855,14 @@ procedure TLobby.SendGameInformation(Player: TPlayer);
 var
   i, i2: Integer;
 begin
-  //Checa se está na sala e se está como "jogando"
-  if (Player.AccInfo.Room > -1) then
+  if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) and (Rooms[Player.AccInfo.Room].Playing = False) then begin
+    for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+      if Rooms[Player.AccInfo.Room].Players[i].Active = True then
+        if Rooms[Player.AccInfo.Room].Players[i].Player <> Player then
+          if Rooms[Player.AccInfo.Room].Players[i].Ready = False then
+            Exit;
+    //Checa por time né
+    Rooms[Player.AccInfo.Room].Playing:=True;
     for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
       if Rooms[Player.AccInfo.Room].Players[i].Active then begin
         Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
@@ -880,7 +894,6 @@ begin
           WriteCd(Dword(Rooms[Player.AccInfo.Room].Map));
           Write(#$00#$00#$00#$00#$FF#$FF#$FF#$FF#$00#$00+
                 #$00#$01#$00#$00#$00);
-
           WriteCw(Word(Rooms[Player.AccInfo.Room].PlayersNumber));
           WriteCw(Word(Rooms[Player.AccInfo.Room].FreeSlots));
           for i2:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
@@ -906,6 +919,7 @@ begin
         end;
         Rooms[Player.AccInfo.Room].Players[i].Player.Send;
       end;
+  end;
 end;
 
 procedure TLobby.SendPlayersInGame(Player: TPlayer);
@@ -937,8 +951,7 @@ procedure TLobby.LoadSync(Player: TPlayer);
 var
   ID, Percent, i: Integer;
 begin
-  //Checa se a sala está jogando
-  if Player.AccInfo.Room > -1 then begin
+  if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].Playing = True) then begin
     ID:=Player.Buffer.RCd(8);
     Percent:=Player.Buffer.RCd(12);
     for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
@@ -966,8 +979,7 @@ procedure TLobby.PlaySign(Player: TPlayer);
 var
   i: Integer;
 begin
-  //Checa se a sala está jogando
-  if Player.AccInfo.Room > -1 then begin
+  if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].Playing = True) then begin
     for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
       if Rooms[Player.AccInfo.Room].Players[i].Active then
         if Rooms[Player.AccInfo.Room].Players[i].LoadStatus < 17 then
@@ -1038,10 +1050,10 @@ begin
             WriteCw(Word(Rooms[Player.AccInfo.Room].FreeSlots));
             for i2:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
               Write(Rooms[Player.AccInfo.Room].Players[i2].Open);
-            Write(#$00#$00#$00#$00#$00+
+            Write(#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$01#$00#$00#$00#$00);
+                  #$01#$00#$00#$00#$00);
             FixSize;
             Encrypt(GenerateIV(0),Random($FF));
             ClearPacket();
@@ -1071,15 +1083,10 @@ begin
             WriteCw(Word(Rooms[Player.AccInfo.Room].FreeSlots));
             for i2:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
               Write(Rooms[Player.AccInfo.Room].Players[i2].Open);
-            Write(#$00#$00#$00#$00#$00+
+            Write(#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$01#$00#$00#$00#$00);
-            {Write(#$00#$00#$00#$05#$01+
-                  #$01#$02#$01#$03#$01#$04#$01#$05#$01#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$01#$00#$00#$00#$00); }
+                  #$01#$00#$00#$00#$00);
             FixSize;
             Encrypt(GenerateIV(0),Random($FF));
             ClearPacket();
@@ -1142,6 +1149,7 @@ var
   NName, NPass: AnsiString;
   i: Integer;
 begin
+  //se n estiver jogando
   if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) then begin
     NName:=Player.Buffer.RS(16,Player.Buffer.RB(15));
     NPass:=Player.Buffer.RS(20+Player.Buffer.RB(15),Player.Buffer.RB(19+Player.Buffer.RB(15)));
@@ -1174,8 +1182,7 @@ var
   SlotID, i: Integer;
   Login: AnsiString;
 begin
-  //checa se está jogando
-  if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) then
+  if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) and (Rooms[Player.AccInfo.Room].Playing = False) then
     if Rooms[Player.AccInfo.Room].TotalKicks > 0 then begin
       Login:=Player.Buffer.RS(16,Player.Buffer.RCd(12));
       SlotID:=-1;
@@ -1190,7 +1197,6 @@ begin
 
 
       if Rooms[Player.AccInfo.Room].Players[SlotID].Active = True then begin
-
         Player.Buffer.BIn:='';
         with Player.Buffer do begin
           Write(Prefix);
