@@ -74,6 +74,7 @@ type
   TLobby = class
     Rooms: array of TRoom;
     procedure Chat(Player: TPlayer; Players: TList<TPlayer>);
+    procedure Whisper(Player: TPlayer; Players: TList<TPlayer>);
     procedure CreateRoom(Player: TPlayer);
     procedure ExitRoom(Player: TPlayer);
     procedure SendRooms(Player: TPlayer);
@@ -164,27 +165,109 @@ var
   Temp: TPlayer;
 begin
   Msg:=Player.Buffer.RS(33+Player.Buffer.RB(16),Player.Buffer.RB(32+Player.Buffer.RB(16)));
-  for Temp in Players do begin
-    Temp.Buffer.BIn:='';
-    with Temp.Buffer do begin
+  for Temp in Players do
+    if Temp.AccInfo.Room = Temp.AccInfo.Room then begin
+      Temp.Buffer.BIn:='';
+      with Temp.Buffer do begin
+        Write(Prefix);
+        Write(Dword(Count));
+        WriteCw(Word(SVPID_CHAT));
+        Write(#$00#$00#$00#$3F#$00#$01);
+        WriteCd(Dword(Player.AccInfo.ID));
+        Write(#$00#$00#$00);
+        Write(Byte(Length(Player.AccInfo.Nick)*2));
+        WriteZd(Player.AccInfo.Nick);
+        Write(#$00#$00#$00#$00#$00#$00#$00#$00#$FF#$FF+
+              #$FF#$FF#$00#$00#$00);
+        Write(Byte(Length(Msg)*2));
+        WriteZd(Msg);
+        Write(#$00#$00#$00#$00#$00#$00#$00#$00);
+        FixSize;
+        Encrypt(GenerateIV(0),Random($FF));
+        ClearPacket();
+      end;
+      Temp.Send;
+    end;
+end;
+
+procedure TLobby.Whisper(Player: TPlayer; Players: TList<TPlayer>);
+var
+  Nick, Msg: AnsiString;
+  Send: Boolean;
+  Temp: TPlayer;
+begin
+  Nick:=Player.Buffer.RS(12,Player.Buffer.RCd(8));
+  Msg:=Player.Buffer.RS(16+Player.Buffer.RCd(8),Player.Buffer.RCd(12+Player.Buffer.RCd(8)));
+  Send:=False;
+  for Temp in Players do
+    if Temp.AccInfo.Nick = Nick then begin
+      Player.Buffer.BIn:='';
+      with Player.Buffer do begin
+        Write(Prefix);
+        Write(Dword(Count));
+        WriteCw(Word(SVPID_WHISPER));
+        Write(#$00#$00#$00#$5B#$00#$00#$00#$00#$00#$03);
+        WriteCd(Dword(Player.AccInfo.ID));
+        WriteCd(Dword(Length(Player.AccInfo.Nick)*2));
+        WriteZd(Player.AccInfo.Nick);
+        WriteCd(Dword(Temp.AccInfo.ID));
+        WriteCd(Dword(Length(Temp.AccInfo.Nick)*2));
+        WriteZd(Temp.AccInfo.Nick);
+        Write(#$00#$00#$00#$00);
+        WriteCd(Dword(Length(Msg)*2));
+        WriteZd(Msg);
+        Write(#$00#$00#$00#$00#$00#$00#$00#$00);
+        FixSize;
+        Encrypt(GenerateIV(0),Random($FF));
+        ClearPacket();
+      end;
+      Player.Send;
+      Temp.Buffer.BIn:='';
+      with Temp.Buffer do begin
+        Write(Prefix);
+        Write(Dword(Count));
+        WriteCw(Word(SVPID_CHAT));
+        Write(#$00#$00#$00#$45#$00#$03);
+        WriteCd(Dword(Player.AccInfo.ID));
+        WriteCd(Dword(Length(Player.AccInfo.Nick)*2));
+        WriteZd(Player.AccInfo.Nick);
+        WriteCd(Dword(Temp.AccInfo.ID));
+        WriteCd(Dword(Length(Temp.AccInfo.Nick)*2));
+        WriteZd(Temp.AccInfo.Nick);
+        Write(#$00#$00#$00#$00);
+        WriteCd(Dword(Length(Msg)*2));
+        WriteZd(Msg);
+        Write(#$00#$00#$00#$00#$00#$00#$00#$00);
+        FixSize;
+        Encrypt(GenerateIV(0),Random($FF));
+        ClearPacket();
+      end;
+      Temp.Send;
+      Send:=True;
+      Break;
+    end;
+  if Send = False then begin
+    Player.Buffer.BIn:='';
+    with Player.Buffer do begin
       Write(Prefix);
       Write(Dword(Count));
-      WriteCw(Word(SVPID_CHAT));
-      Write(#$00#$00#$00#$3F#$00#$01);
+      WriteCw(Word(SVPID_WHISPER));
+      Write(#$00#$00#$00#$4B#$00#$00#$00#$00#$04#$03);
       WriteCd(Dword(Player.AccInfo.ID));
-      Write(#$00#$00#$00);
-      Write(Byte(Length(Player.AccInfo.Nick)*2));
+      WriteCd(Dword(Length(Player.AccInfo.Nick)*2));
       WriteZd(Player.AccInfo.Nick);
-      Write(#$00#$00#$00#$00#$00#$00#$00#$00#$FF#$FF+
-            #$FF#$FF#$00#$00#$00);
-      Write(Byte(Length(Msg)*2));
+      Write(#$00#$00#$00#$00);
+      WriteCd(Dword(Length(Nick)*2));
+      WriteZd(Nick);
+      Write(#$00#$00#$00#$00);
+      WriteCd(Dword(Length(Msg)*2));
       WriteZd(Msg);
       Write(#$00#$00#$00#$00#$00#$00#$00#$00);
       FixSize;
       Encrypt(GenerateIV(0),Random($FF));
       ClearPacket();
     end;
-    Temp.Send;
+    Player.Send;
   end;
 end;
 
@@ -553,8 +636,8 @@ begin
             Write(Prefix);
             Write(Dword(Count));
             WriteCw(Word(22));
-            Write(#$00);
-            WriteCd(Dword(Length(Player.AccInfo.Login)*2));
+            Write(#$00#$00#$00#$00);
+            Write(Byte(Length(Player.AccInfo.Login)*2));
             WriteZd(Player.AccInfo.Login);
             WriteCd(Dword(Player.AccInfo.ID));
             WriteCd(Dword(Length(Player.AccInfo.Nick)*2));
@@ -581,7 +664,8 @@ begin
                   #$00#$00#$00#$00#$00#$2C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$2D#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$2E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$2F#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$30#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$31#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$32#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$35#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$32#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$33#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$34#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$35#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$36#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$37#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$38#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$39#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$3A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3B#$00#$00#$00#$00#$00#$00#$00#$00#$00+
@@ -602,7 +686,7 @@ begin
                   #$00#$00#$00#$00#$00#$5B#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5C#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$5D#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$5E#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$5F#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00);
-            if Rooms[Player.AccInfo.Room].GetLeader = Rooms[Player.AccInfo.Room].Players[i].Player then
+            if Rooms[Player.AccInfo.Room].GetLeader = Player then
               Write(#$01)
             else
               Write(#$00);
@@ -718,7 +802,8 @@ begin
                   #$00#$00#$00#$00#$00#$2C#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$2D#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$2E#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$2F#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$30#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$31#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$32#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$35#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$32#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$33#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$34#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$35#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$36#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$37#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$38#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$39#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$3A#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$3B#$00#$00#$00#$00#$00#$00#$00#$00#$00+
@@ -1060,8 +1145,14 @@ begin
           Rooms[Player.AccInfo.Room].Players[i].Player.Send;
         end;
     end;
-  if Player.Buffer.RB(6) = $5B then
+  if (Player.Buffer.RB(6) = $53) and (Rooms[Player.AccInfo.Room].GameMode = GM_SOLO) then
     if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) and (Rooms[Player.AccInfo.Room].Playing = False) then begin
+      Slot1:=Player.Buffer.RB(58);
+      Active1:=Player.Buffer.RBo(59);
+      if (Rooms[Player.AccInfo.Room].Players[Slot1].Active = False) then
+        Rooms[Player.AccInfo.Room].Players[Slot1].Open:=Active1
+      else
+        Exit;
       for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
         if Rooms[Player.AccInfo.Room].Players[i].Active then begin
           Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
@@ -1069,7 +1160,7 @@ begin
             Write(Prefix);
             Write(Dword(Count));
             WriteCw(Word(SVPID_GAMEUPDATE));
-            Write(#$00#$00#$00#$5B#$00#$00#$00#$00#$00#$00+
+            Write(#$00#$00#$00#$53#$00#$00#$00#$00#$00#$00+
                   #$00#$00);
             Write(Byte(Rooms[Player.AccInfo.Room].MatchMode));
             WriteCd(Dword(Rooms[Player.AccInfo.Room].GameMode));
@@ -1082,10 +1173,13 @@ begin
             WriteCw(Word(Rooms[Player.AccInfo.Room].FreeSlots));
             for i2:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
               Write(Rooms[Player.AccInfo.Room].Players[i2].Open);
+            Write(#$00#$00#$00#$01);
+            Write(Byte(Slot1));
+            Write(Active1);
             Write(#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                  #$01#$00#$00#$00#$00);
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$01#$00+
+                  #$00#$00#$00);
             FixSize;
             Encrypt(GenerateIV(0),Random($FF));
             ClearPacket();
@@ -1093,7 +1187,7 @@ begin
           Rooms[Player.AccInfo.Room].Players[i].Player.Send;
         end;
     end;
-  if Player.Buffer.RB(6) = $55 then
+  if (Player.Buffer.RB(6) = $55) and (Rooms[Player.AccInfo.Room].GameMode = GM_TEAM) then
     if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) and (Rooms[Player.AccInfo.Room].Playing = False) then begin
       Slot1:=Player.Buffer.RB(58);
       Active1:=Player.Buffer.RBo(59);
@@ -1134,6 +1228,39 @@ begin
                   #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
                   #$00#$00#$00#$00#$00#$00#$01#$00#$00#$00+
                   #$00);
+            FixSize;
+            Encrypt(GenerateIV(0),Random($FF));
+            ClearPacket();
+          end;
+          Rooms[Player.AccInfo.Room].Players[i].Player.Send;
+        end;
+    end;
+  if Player.Buffer.RB(6) = $5B then
+    if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].GetLeader = Player) and (Rooms[Player.AccInfo.Room].Playing = False) then begin
+      for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+        if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+          Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
+          with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
+            Write(Prefix);
+            Write(Dword(Count));
+            WriteCw(Word(SVPID_GAMEUPDATE));
+            Write(#$00#$00#$00#$5B#$00#$00#$00#$00#$00#$00+
+                  #$00#$00);
+            Write(Byte(Rooms[Player.AccInfo.Room].MatchMode));
+            WriteCd(Dword(Rooms[Player.AccInfo.Room].GameMode));
+            WriteCd(Dword(Rooms[Player.AccInfo.Room].ItemMode));
+            Write(Rooms[Player.AccInfo.Room].isRand);
+            WriteCd(Dword(Rooms[Player.AccInfo.Room].Map));
+            Write(#$00#$00#$00#$00#$FF#$FF#$FF#$FF#$00#$00+
+                  #$00#$00#$00#$00#$00);
+            WriteCw(Word(Rooms[Player.AccInfo.Room].PlayersNumber));
+            WriteCw(Word(Rooms[Player.AccInfo.Room].FreeSlots));
+            for i2:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+              Write(Rooms[Player.AccInfo.Room].Players[i2].Open);
+            Write(#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$00#$00#$00#$00#$00#$00#$00#$00#$00#$00+
+                  #$01#$00#$00#$00#$00);
             FixSize;
             Encrypt(GenerateIV(0),Random($FF));
             ClearPacket();

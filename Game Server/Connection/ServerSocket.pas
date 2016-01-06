@@ -3590,6 +3590,7 @@ begin
 
                 CLPID_CHANGEUSERSETTINGS: Lobby.ChangeUserSettings(Player);
                 CLPID_CHAT: Lobby.Chat(Player,Players);
+                CLPID_WHISPER:  Lobby.Whisper(Player,Players);
 
                 TCLPID(48): Player.Inventory.Upgrade(Player);
                 TCLPID(52): Shop.BuyItem(Player);

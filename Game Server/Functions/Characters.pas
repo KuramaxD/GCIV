@@ -29,7 +29,7 @@ constructor TCharacters.Create(MySQL: TQuery; AccInfo: TAccountInfo);
 begin
   Self.MySQL:=MySQL;
   Self.AccInfo:=AccInfo;
-  MySQL.SetQuery('SELECT CHARID, PROMOTION, EXP, LEVEL FROM Characters WHERE ID = :ID');
+  MySQL.SetQuery('SELECT CHARID, PROMOTION, EXP, LEVEL FROM Characters WHERE ID = :ID ORDER BY CHARID ASC');
   MySQL.AddParameter('ID',AnsiString(IntToStr(AccInfo.ID)));
   MySQL.Run(1);
   if MySQL.Query.IsEmpty = False then
