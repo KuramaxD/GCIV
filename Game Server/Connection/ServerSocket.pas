@@ -3585,12 +3585,13 @@ begin
                 CLPID_REQUESTPLAYERSINGAME: Lobby.SendPlayersInGame(Player);
                 CLPID_LOADINFO: Lobby.LoadSync(Player);
                 CLPID_REQUESTPLAYSIGN: Lobby.PlaySign(Player);
+                CLPID_AFK: Lobby.AFK(Player);
                 TCLPID($83): Lobby.KickUser(Player);
                 TCLPID(825): ;
 
                 CLPID_CHANGEUSERSETTINGS: Lobby.ChangeUserSettings(Player);
                 CLPID_CHAT: Lobby.Chat(Player,Players);
-                CLPID_WHISPER:  Lobby.Whisper(Player,Players);
+                CLPID_WHISPER: Lobby.Whisper(Player,Players);
 
                 TCLPID(48): Player.Inventory.Upgrade(Player);
                 TCLPID(52): Shop.BuyItem(Player);

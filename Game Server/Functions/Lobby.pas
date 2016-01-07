@@ -47,6 +47,7 @@ type
     Count: Integer;
     LoadStatus: Integer;
     Ready: Boolean;
+    AFK: Boolean;
   end;
 
 type
@@ -87,6 +88,7 @@ type
     procedure ChangeGameSettings(Player: TPlayer);
     procedure ChangeRoomSettings(Player: TPlayer);
     procedure KickUser(Player: TPlayer);
+    procedure AFK(Player: TPlayer);
   end;
 
 implementation
@@ -341,12 +343,11 @@ begin
       Write(Prefix);
       Write(Dword(Count));
       WriteCw(Word(25));
-      Write(#$00#$00#$00#$00#$00#$00#$00#$00);
-      Write(Byte(Length(Player.AccInfo.Login)*2));
+      Write(#$00#$00#$00#$00#$00);
+      WriteCd(Dword(Length(Player.AccInfo.Login)*2));
       WriteZd(Player.AccInfo.Login);
       WriteCd(Dword(Player.AccInfo.ID));
-      Write(#$00#$00#$00);
-      Write(Byte(Length(Player.AccInfo.Nick)*2));
+      WriteCd(Dword(Length(Player.AccInfo.Nick)*2));
       WriteZd(Player.AccInfo.Nick);
       WriteCd(Dword(Rooms[N].PlayerSlot(Player)));
       Write(Byte(Player.AccInfo.Char));
@@ -636,8 +637,8 @@ begin
             Write(Prefix);
             Write(Dword(Count));
             WriteCw(Word(22));
-            Write(#$00#$00#$00#$00);
-            Write(Byte(Length(Player.AccInfo.Login)*2));
+            Write(#$00);
+            WriteCd(Dword(Length(Player.AccInfo.Login)*2));
             WriteZd(Player.AccInfo.Login);
             WriteCd(Dword(Player.AccInfo.ID));
             WriteCd(Dword(Length(Player.AccInfo.Nick)*2));
@@ -894,18 +895,52 @@ end;
 
 procedure TLobby.ChangeUserSettings(Player: TPlayer);
 var
-  i: Integer;
-  Char, Test: Byte;
+  i, Space: Integer;
+  Char, Test, Team: Byte;
   Ready: Boolean;
 begin
-  logger.Write(player.Buffer.BOut,packets);
   if (Player.AccInfo.Room > -1) and (Rooms[Player.AccInfo.Room].Playing = False) then begin
+    Team:=Player.Buffer.RB(24+Player.Buffer.RCd(17));
     Char:=Player.Buffer.RB(29+Player.Buffer.RCd(17));
     Test:=Player.Buffer.RB(30+Player.Buffer.RCd(17));
     Ready:=Player.Buffer.RBo(39+Player.Buffer.RCd(17));
     if Player.Chars.isChar(Char) then begin
-      if Test = 255 then
+      if Test = 255 then begin
         Player.AccInfo.Char:=Char;
+        if Rooms[Player.AccInfo.Room].Team(Player) <> Team then begin
+          Space:=-1;
+          if Team = 0 then
+            for i:=0 to 2 do
+              if (Rooms[Player.AccInfo.Room].Players[i].Active = False) and (Rooms[Player.AccInfo.Room].Players[i].Open = True) then begin
+                Space:=i;
+                Break;
+              end;
+          if Team = 1 then
+            for i:=3 to 5 do
+              if (Rooms[Player.AccInfo.Room].Players[i].Active = False) and (Rooms[Player.AccInfo.Room].Players[i].Open = True) then begin
+                Space:=i;
+                Break;
+              end;
+          if Space = -1 then
+            Exit;
+          for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+            if Rooms[Player.AccInfo.Room].Players[i].Player = Player then begin
+              Rooms[Player.AccInfo.Room].Players[Space].Active:=Rooms[Player.AccInfo.Room].Players[i].Active;
+              Rooms[Player.AccInfo.Room].Players[Space].Open:=Rooms[Player.AccInfo.Room].Players[i].Open;
+              Rooms[Player.AccInfo.Room].Players[Space].Player:=Rooms[Player.AccInfo.Room].Players[i].Player;
+              Rooms[Player.AccInfo.Room].Players[Space].Count:=Rooms[Player.AccInfo.Room].Players[i].Count;
+              Rooms[Player.AccInfo.Room].Players[Space].LoadStatus:=Rooms[Player.AccInfo.Room].Players[i].LoadStatus;
+              Rooms[Player.AccInfo.Room].Players[Space].Ready:=Rooms[Player.AccInfo.Room].Players[i].Ready;
+              Rooms[Player.AccInfo.Room].Players[i].Active:=False;
+              Rooms[Player.AccInfo.Room].Players[i].Open:=True;
+              Rooms[Player.AccInfo.Room].Players[i].Player:=TPlayer(-1);
+              Rooms[Player.AccInfo.Room].Players[i].Count:=0;
+              Rooms[Player.AccInfo.Room].Players[i].LoadStatus:=0;
+              Rooms[Player.AccInfo.Room].Players[i].Ready:=False;
+              Break;
+            end;
+        end;
+      end;
       for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
         if Rooms[Player.AccInfo.Room].Players[i].Active then begin
           if Rooms[Player.AccInfo.Room].Players[i].Player = Player then
@@ -1361,6 +1396,35 @@ begin
         Rooms[Player.AccInfo.Room].Players[SlotID].Count:=0;
         Rooms[Player.AccInfo.Room].Players[SlotID].Player.AccInfo.Room:=-1;
       end;
+    end;
+end;
+
+procedure TLobby.AFK(Player: TPlayer);
+var
+  AFK: Boolean;
+  i: Integer;
+begin
+  AFK:=Player.Buffer.RBo(11);
+  for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+    if Rooms[Player.AccInfo.Room].Players[i].Player = Player then begin
+      Rooms[Player.AccInfo.Room].Players[i].AFK:=AFK;
+      Break;
+    end;
+  for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+    if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+      Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
+      with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
+        Write(Prefix);
+        Write(Dword(Count));
+        WriteCw(Word(SVPID_AFK));
+        Write(#$00#$00#$00#$08#$00);
+        WriteCd(Dword(Player.AccInfo.ID));
+        WriteCd(Dword(AFK));
+        FixSize;
+        Encrypt(GenerateIV(0),Random($FF));
+        ClearPacket();
+      end;
+      Rooms[Player.AccInfo.Room].Players[i].Player.Send;
     end;
 end;
 
