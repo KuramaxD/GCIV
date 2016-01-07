@@ -151,7 +151,7 @@ begin
   Loading.GuildMark:='http://gcreborn.com/GuildMark/';
   Unknown:=TUnknown.Create;
   Players:=TList<TPlayer>.Create;
-  Logger.Write('Conectando na dabatase',ServerStatus);
+  Logger.Write('Conectando na database',ServerStatus);
   MySQL:=TQuery.Create('127.0.0.1',3306,'root','root','gc');
   if MySQL.MySQL.Connected = True then begin
     Logger.Write('Conectado',Warnings);
