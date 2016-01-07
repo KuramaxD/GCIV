@@ -89,6 +89,7 @@ type
     procedure ChangeRoomSettings(Player: TPlayer);
     procedure KickUser(Player: TPlayer);
     procedure AFK(Player: TPlayer);
+    procedure SendAFKStatus(Player: TPlayer);
   end;
 
 implementation
@@ -1405,27 +1406,67 @@ var
   i: Integer;
 begin
   AFK:=Player.Buffer.RBo(11);
-  for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
-    if Rooms[Player.AccInfo.Room].Players[i].Player = Player then begin
-      Rooms[Player.AccInfo.Room].Players[i].AFK:=AFK;
-      Break;
-    end;
-  for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
-    if Rooms[Player.AccInfo.Room].Players[i].Active then begin
-      Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
-      with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
-        Write(Prefix);
-        Write(Dword(Count));
-        WriteCw(Word(SVPID_AFK));
-        Write(#$00#$00#$00#$08#$00);
-        WriteCd(Dword(Player.AccInfo.ID));
-        WriteCd(Dword(AFK));
-        FixSize;
-        Encrypt(GenerateIV(0),Random($FF));
-        ClearPacket();
+  if Player.AccInfo.Room > -1 then begin
+    for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+      if Rooms[Player.AccInfo.Room].Players[i].Player = Player then begin
+        Rooms[Player.AccInfo.Room].Players[i].AFK:=AFK;
+        Break;
       end;
-      Rooms[Player.AccInfo.Room].Players[i].Player.Send;
+    for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+      if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+        Rooms[Player.AccInfo.Room].Players[i].Player.Buffer.BIn:='';
+        with Rooms[Player.AccInfo.Room].Players[i].Player.Buffer do begin
+          Write(Prefix);
+          Write(Dword(Count));
+          WriteCw(Word(SVPID_AFK));
+          Write(#$00#$00#$00#$08#$00);
+          WriteCd(Dword(Player.AccInfo.ID));
+          WriteCd(Dword(AFK));
+          FixSize;
+          Encrypt(GenerateIV(0),Random($FF));
+          ClearPacket();
+        end;
+        Rooms[Player.AccInfo.Room].Players[i].Player.Send;
+      end;
+  end
+  else begin
+    Player.Buffer.BIn:='';
+    with Player.Buffer do begin
+      Write(Prefix);
+      Write(Dword(Count));
+      WriteCw(Word(SVPID_AFK));
+      Write(#$00#$00#$00#$08#$00);
+      WriteCd(Dword(Player.AccInfo.ID));
+      WriteCd(Dword(AFK));
+      FixSize;
+      Encrypt(GenerateIV(0),Random($FF));
+      ClearPacket();
     end;
+    Player.Send;
+  end;
+end;
+
+procedure TLobby.SendAFKStatus(Player: TPlayer);
+var
+  i: Integer;
+begin
+  Player.Buffer.BIn:='';
+  with Player.Buffer do begin
+    Write(Prefix);
+    Write(Dword(Count));
+    WriteCw(Word(SVPID_AFKSTATUS));
+    Write(#$00#$00#$00#$14#$00);
+    WriteCd(Dword(Rooms[Player.AccInfo.Room].PlayersNumber));
+    for i:=0 to Length(Rooms[Player.AccInfo.Room].Players)-1 do
+      if Rooms[Player.AccInfo.Room].Players[i].Active then begin
+        WriteCd(Dword(Rooms[Player.AccInfo.Room].Players[i].Player.AccInfo.ID));
+        WriteCd(Dword(Rooms[Player.AccInfo.Room].Players[i].AFK));
+      end;
+    FixSize;
+    Encrypt(GenerateIV(0),Random($FF));
+    ClearPacket();
+  end;
+  Player.Send;
 end;
 
 end.

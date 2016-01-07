@@ -3586,6 +3586,7 @@ begin
                 CLPID_LOADINFO: Lobby.LoadSync(Player);
                 CLPID_REQUESTPLAYSIGN: Lobby.PlaySign(Player);
                 CLPID_AFK: Lobby.AFK(Player);
+                CLPID_REQUESTAFKSTATUS: Lobby.SendAFKStatus(Player);
                 TCLPID($83): Lobby.KickUser(Player);
                 TCLPID(825): ;
 
