@@ -147,7 +147,7 @@ begin
   Loading.SquareLoading[3]:='Square3DObject.lua';
   Loading.AddHack('Teste.dll');
   Loading.AddCheck('mainxx.exe','A42B77BEEECE321B19257C7EE803548B9DFD7A42');
-  Loading.AddCheck('script.kom','A2BB33C398C1B4EE6F9C07FF73D4E0B3B87809BC');
+  Loading.AddCheck('script.kom','5E1959836BDCCE737EA85BCC781B7952274D55B1');
   Loading.GuildMark:='http://gcreborn.com/GuildMark/';
   Unknown:=TUnknown.Create;
   Players:=TList<TPlayer>.Create;

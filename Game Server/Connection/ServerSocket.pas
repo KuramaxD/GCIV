@@ -73,7 +73,7 @@ end;
 procedure TServer.OnRead(Sender: TObject; Socket: TCustomWinSocket);
 var
   Player: TPlayer;
-  Size, PacketID: Integer;
+  Size, PacketID, i: Integer;
 begin
   MainCS.Acquire;
   try
@@ -177,6 +177,7 @@ begin
                   end;
                   Player.Send;
 
+                  //diferente
                   Player.Buffer.BIn:='';
                   with Player.Buffer do begin
                     Write(Prefix);
@@ -237,6 +238,7 @@ begin
                   Player.Send;
                 end;
 
+                //diferente
                 TCLPID(517): begin
                   Player.Buffer.BIn:='';
                   with Player.Buffer do begin
@@ -347,6 +349,7 @@ begin
                   end;
                   Player.Send;
 
+                  //diferente
                   Player.Buffer.BIn:='';
                   with Player.Buffer do begin
                     Write(Prefix);
@@ -376,6 +379,8 @@ begin
                   end;
                   Player.Send;
                 end;
+
+                //falta 0368
 
                 TCLPID(871): begin
                   Player.Buffer.BIn:='';
@@ -976,19 +981,7 @@ begin
                   end;
                   Player.Send;
 
-                  Player.Buffer.BIn:='';
-                  with Player.Buffer do begin
-                    Write(Prefix);
-                    Write(Dword(Count));
-                    Write(#$05);
-                    Write(Word($a4));
-                    Write(#$00#$00#$22#$00#$00#$00#$00#$03#$00#$00#$00#$00#$00#$00#$00#$00#$00#$00#$01#$00#$00#$00#$00#$00#$00#$00#$00#$00#$02#$00+
-                          #$00#$00#$00#$00#$00#$00#$00#$00);
-                    FixSize;
-                    Encrypt(GenerateIV(0),Random($FF));
-                    ClearPacket();
-                  end;
-                  Player.Send;
+                  Player.Chars.SendSWeaponStatus(Player);
 
                   Player.Buffer.BIn:='';
                   with Player.Buffer do begin
@@ -3590,6 +3583,12 @@ begin
                 TCLPID($83): Lobby.KickUser(Player);
                 TCLPID(825): ;
 
+
+                TCLPID(46): Lobby.EndGame(Player);
+                TCLPID(922): Lobby.KnS(Player);
+
+                CLPID_ENABLESWEAPON: Player.Chars.EnableSWeapon(Player);
+                CLPID_REQUESTPLAYSIGN2: Lobby.PlaySign2(Player);
                 CLPID_CHANGEUSERSETTINGS: Lobby.ChangeUserSettings(Player);
                 CLPID_CHAT: Lobby.Chat(Player,Players);
                 CLPID_WHISPER: Lobby.Whisper(Player,Players);
