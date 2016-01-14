@@ -352,7 +352,8 @@ begin
             Write(#$00);
           end;
           Write(#$00#$00#$00#$00#$00#$00#$00#$00#$00+
-                #$00#$00#$00#$FF#$FF);
+                #$00#$00#$00);
+          WriteCw(Word(Pets.Pets[i].Bind));
         end;
 
 
