@@ -24,7 +24,8 @@ uses
   Inventory in 'Functions\Inventory.pas',
   Shop in 'Functions\Shop.pas',
   SortUS in 'Functions\SortUS.pas',
-  Lobby in 'Functions\Lobby.pas';
+  Lobby in 'Functions\Lobby.pas',
+  Pets in 'Functions\Pets.pas';
 
 var
   Msg: TMsg;

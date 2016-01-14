@@ -15,10 +15,9 @@ type
   TShop = class
     private
       ShopItems: array of TShopGroup;
-      SortUS: TSortUS;
       MySQL: TQuery;
     public
-      constructor Create(MySQL: TQuery; SortUS: TSortUS);
+      constructor Create(MySQL: TQuery);
       procedure SendUnknown1(Player: TPlayer);
       procedure SendUnknown2(Player: TPlayer);
       procedure CheckItem(Player: TPlayer);
@@ -30,12 +29,11 @@ implementation
 
 uses GlobalDefs;
 
-constructor TShop.Create(MySQL: TQuery; SortUS: TSortUS);
+constructor TShop.Create(MySQL: TQuery);
 var
   Temp: TShopGroup;
 begin
   Self.MySQL:=MySQL;
-  Self.SortUS:=SortUS;
   MySQL.SetQuery('SELECT START, END FROM Shop');
   MySQL.Run(1);
   while MySQL.Query.Eof = False do begin
@@ -129,8 +127,8 @@ begin
   if Quantity = $FFFFFFFF then
     Quantity:=1;
   if Contain(ItemID) then begin
-    if SortUS.Items.ContainsKey(ItemID) then begin
-      SortUS.Items.TryGetValue(ItemID,TTItem);
+    if Player.SortUS.Items.ContainsKey(ItemID) then begin
+      Player.SortUS.Items.TryGetValue(ItemID,TTItem);
       if TTItem.CType = 0 then
         if (Player.Currency.GP - TTItem.Price * Integer(Quantity)) >= 0 then begin
           Dec(Player.Currency.GP,TTItem.Price * Integer(Quantity));
@@ -174,7 +172,7 @@ begin
           end;
         end;
         1: begin
-          for TTItem2 in SortUS.Items.Values do
+          for TTItem2 in Player.SortUS.Items.Values do
             if TTItem2.ID <> Integer(ItemID) then begin
               if Length(Item) = 4 then
                 Break;

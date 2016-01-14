@@ -18,6 +18,7 @@ type
     Level: Integer;
     SWeapon: Boolean;
     SWeaponID: Integer;
+    Pet: Integer;
     Equips: array of TEquips;
   end;
 
@@ -42,7 +43,7 @@ constructor TCharacters.Create(MySQL: TQuery; AccInfo: TAccountInfo);
 begin
   Self.MySQL:=MySQL;
   Self.AccInfo:=AccInfo;
-  MySQL.SetQuery('SELECT CHARID, PROMOTION, EXP, LEVEL, SWEAPON, SWEAPONID FROM Characters WHERE ID = :ID ORDER BY CHARID ASC');
+  MySQL.SetQuery('SELECT CHARID, PROMOTION, EXP, LEVEL, SWEAPON, SWEAPONID, PET FROM Characters WHERE ID = :ID ORDER BY CHARID ASC');
   MySQL.AddParameter('ID',AnsiString(IntToStr(AccInfo.ID)));
   MySQL.Run(1);
   if MySQL.Query.IsEmpty = False then
@@ -54,6 +55,7 @@ begin
       Chars[Length(Chars)-1].Level:=MySQL.Query.Fields[3].AsInteger;
       Chars[Length(Chars)-1].SWeapon:=Boolean(MySQL.Query.Fields[4].AsInteger);
       Chars[Length(Chars)-1].SWeaponID:=MySQL.Query.Fields[5].AsInteger;
+      Chars[Length(Chars)-1].Pet:=MySQL.Query.Fields[6].AsInteger;
 
       if MySQL.Query.Fields[0].AsInteger = 1 then begin
         SetLength(Chars[Length(Chars)-1].Equips,15);

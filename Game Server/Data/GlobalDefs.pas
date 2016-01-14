@@ -35,6 +35,8 @@ type
     CLPID_CHANGEUSERSETTINGS                = $0028,
     CLPID_EXITROOMREQUEST                   = $0021,
     CLPID_ENABLESWEAPON                     = $03B6,
+    CLPID_FEEDPET                           = $00D1,
+    CLPID_CHANGEPETNAME                     = $00D3,
     CLPID_NOTHING                           = $FFFF,
 
 
@@ -62,6 +64,8 @@ type
     SVPID_USERUPDATE                        = $0029,
     SVPID_CHANGELEADER                      = $0080,
     SVPID_EXITSIGN                          = $0081,
+    SVPID_FEEDPET                           = $00D2,
+    SVPID_CHANGEPETNAME                     = $00D4,
 
     SVPID_UNKNOWN_0611                      = $0611,
     SVPID_UNKNOWN_0414                      = $0414,

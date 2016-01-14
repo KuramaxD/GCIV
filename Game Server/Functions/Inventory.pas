@@ -26,6 +26,7 @@ type
       procedure SendPreUpgrade(PPlayer: Pointer);
       procedure Upgrade(PPlayer: Pointer);
       function RemoveiID(ID: Integer; Quantity: Integer): TRInventory;
+      function RemoveID(ID: Integer; Quantity: Integer): TRInventory;
   end;
 
 implementation
@@ -246,6 +247,42 @@ begin
   Index:=-1;
   for i:=0 to Length(Inventory)-1 do
     if Inventory[i].ItemID = ID then begin
+      if ((Inventory[i].Quantity-Quantity) > 1) and (DWORD(Inventory[i].Quantity) <> $FFFFFFFF) then begin
+        Dec(Inventory[i].Quantity);
+        MySQL.SetQuery('UPDATE INVENTORY SET QUANTITY = :QUANTITY WHERE ID = :ID');
+        MySQL.AddParameter('QUANTITY',AnsiString(IntToStr(Inventory[i].Quantity)));
+        MySQL.AddParameter('ID',AnsiString(IntToStr(Inventory[i].ID)));
+        MySQL.Run(2);
+        Result:=Inventory[i];
+      end
+      else begin
+        MySQL.SetQuery('DELETE FROM INVENTORY WHERE ID = :ID');
+        MySQL.AddParameter('ID',AnsiString(IntToStr(Inventory[i].ID)));
+        MySQL.Run(2);
+        Index:=i;
+        Inventory[i].Quantity:=0;
+        Result:=Inventory[i];
+      end;
+      Break;
+    end;
+  if Index > -1 then begin
+    ALength:=Length(Inventory);
+    Assert(ALength > 0);
+    Assert(DWORD(Index) < ALength);
+    for i:=Index+1 to ALength-1 do
+      Inventory[i-1]:=Inventory[i];
+    SetLength(Inventory,ALength-1);
+  end;
+end;
+
+function TInventory.RemoveID(ID: Integer; Quantity: Integer): TRInventory;
+var
+  i, Index: Integer;
+  ALength: Cardinal;
+begin
+  Index:=-1;
+  for i:=0 to Length(Inventory)-1 do
+    if Inventory[i].ID = ID then begin
       if ((Inventory[i].Quantity-Quantity) > 1) and (DWORD(Inventory[i].Quantity) <> $FFFFFFFF) then begin
         Dec(Inventory[i].Quantity);
         MySQL.SetQuery('UPDATE INVENTORY SET QUANTITY = :QUANTITY WHERE ID = :ID');

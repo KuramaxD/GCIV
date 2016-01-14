@@ -14,6 +14,8 @@ type
     Price: Integer;
     GoodsType: Integer;
     Quantity: Integer;
+    Food: Integer;
+    Atk: Integer;
   end;
 
 {
@@ -91,6 +93,10 @@ begin
       Move(TTemp[1],TempItem.GoodsType,4);
       TTemp:=Copy(Temp,IStart+548,4);
       Move(TTemp[1],TempItem.Quantity,4);
+      TTemp:=Copy(Temp,IStart+918,4);
+      Move(TTemp[1],TempItem.Food,4);
+      TTemp:=Copy(Temp,IStart+922,4);
+      Move(TTemp[1],TempItem.Atk,4);
       if not items.ContainsKey(TID) then
         Items.Add(TID,TempItem);
       Inc(iStart,935);

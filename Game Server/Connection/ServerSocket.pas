@@ -34,7 +34,7 @@ var
 begin
   MainCS.Acquire;
   try
-    Player:=TPlayer.Create(Socket,MySQL);
+    Player:=TPlayer.Create(Socket,MySQL, SortUS);
     Logger.Write(Format('Player Conectou [Handle: %d, IV1: %s, IV2: %s]',[Socket.Handle,Space(StringToHex(Player.Buffer.IV)),Space(StringToHex(Player.Buffer.IV2))]),ServerStatus);
     Players.Add(Player);
   finally
@@ -3589,9 +3589,12 @@ begin
 
                 CLPID_ENABLESWEAPON: Player.Chars.EnableSWeapon(Player);
                 CLPID_REQUESTPLAYSIGN2: Lobby.PlaySign2(Player);
+                CLPID_FEEDPET: Player.Pets.Feed(Player);
                 CLPID_CHANGEUSERSETTINGS: Lobby.ChangeUserSettings(Player);
                 CLPID_CHAT: Lobby.Chat(Player,Players);
                 CLPID_WHISPER: Lobby.Whisper(Player,Players);
+                CLPID_CHANGEPETNAME: Player.Pets.ChangeName(Player);
+                TCLPID($10b): Player.Pets.Incube(Player);
 
                 TCLPID(48): Player.Inventory.Upgrade(Player);
                 TCLPID(52): Shop.BuyItem(Player);
@@ -3633,7 +3636,7 @@ begin
   Logger.Write('Conectando na database',ServerStatus);
   MySQL:=TQuery.Create('127.0.0.1',3306,'root','root','gc');
   if MySQL.MySQL.Connected = True then begin
-    Shop:=TShop.Create(MySQL,SortUS);
+    Shop:=TShop.Create(MySQL);
     Logger.Write('Conectado',Warnings);
     Self.Socket:=TServerSocket.Create(nil);
     Self.Socket.OnClientConnect:=Self.OnConnect;
