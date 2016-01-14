@@ -37,7 +37,7 @@ type
     CLPID_ENABLESWEAPON                     = $03B6,
     CLPID_FEEDPET                           = $00D1,
     CLPID_CHANGEPETNAME                     = $00D3,
-    CLPID_INCUBE                            = $010B,
+    CLPID_HATCH                             = $010B,
     CLPID_PETREGISTER                       = $00CD,
     CLPID_NOTHING                           = $FFFF,
 
@@ -68,7 +68,7 @@ type
     SVPID_EXITSIGN                          = $0081,
     SVPID_FEEDPET                           = $00D2,
     SVPID_CHANGEPETNAME                     = $00D4,
-    SVPID_INCUBE                            = $010C,
+    SVPID_HATCH                             = $010C,
     SVPID_PETREGISTER                       = $00CE,
 
     SVPID_UNKNOWN_0611                      = $0611,

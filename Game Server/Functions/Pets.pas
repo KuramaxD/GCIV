@@ -36,7 +36,7 @@ type
       procedure AddPetTransform(PetID, nPetID: Integer);
       procedure Feed(PPlayer: Pointer);
       procedure ChangeName(PPlayer: Pointer);
-      procedure Incube(PPlayer: Pointer);
+      procedure Hatch(PPlayer: Pointer);
       procedure Register(PPlayer: Pointer);
   end;
 
@@ -181,7 +181,7 @@ begin
       end;
 end;
 
-procedure TPet.Incube(PPlayer: Pointer);
+procedure TPet.Hatch(PPlayer: Pointer);
 var
   Player: TPlayer;
   PetID, i, iAtk, Quantity: Integer;
@@ -231,7 +231,7 @@ begin
             with Player.Buffer do begin
               Write(Prefix);
               Write(Dword(Count));
-              WriteCw(Word(SVPID_INCUBE));
+              WriteCw(Word(SVPID_HATCH));
               Write(#$00#$00#$00#$00#$00#$00#$00#$00#$00);
               WriteCd(Dword(Livro.ItemID));
               WriteCd(Dword(NPet.ItemID));

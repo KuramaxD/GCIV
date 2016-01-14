@@ -3594,7 +3594,7 @@ begin
                 CLPID_CHAT: Lobby.Chat(Player,Players);
                 CLPID_WHISPER: Lobby.Whisper(Player,Players);
                 CLPID_CHANGEPETNAME: Player.Pets.ChangeName(Player);
-                CLPID_INCUBE: Player.Pets.Incube(Player);
+                CLPID_HATCH: Player.Pets.Hatch(Player);
                 CLPID_PETREGISTER: Player.Pets.Register(Player);
 
                 TCLPID(48): Player.Inventory.Upgrade(Player);
