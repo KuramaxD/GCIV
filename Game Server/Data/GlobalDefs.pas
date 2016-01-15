@@ -39,6 +39,7 @@ type
     CLPID_CHANGEPETNAME                     = $00D3,
     CLPID_HATCH                             = $010B,
     CLPID_PETREGISTER                       = $00CD,
+    CLPID_PREEVOLVE                         = $00E9,
     CLPID_NOTHING                           = $FFFF,
 
 
@@ -70,6 +71,8 @@ type
     SVPID_CHANGEPETNAME                     = $00D4,
     SVPID_HATCH                             = $010C,
     SVPID_PETREGISTER                       = $00CE,
+    SVPID_PREEVOLVE                         = $00EA,
+    SVPID_PETEVOLVE                         = $00EC,
 
     SVPID_UNKNOWN_0611                      = $0611,
     SVPID_UNKNOWN_0414                      = $0414,

@@ -3596,6 +3596,8 @@ begin
                 CLPID_CHANGEPETNAME: Player.Pets.ChangeName(Player);
                 CLPID_HATCH: Player.Pets.Hatch(Player);
                 CLPID_PETREGISTER: Player.Pets.Register(Player);
+                CLPID_PREEVOLVE: Player.Pets.PreEvolve(Player);
+                TCLPID($EB): Player.Pets.Evolve(Player);
 
                 TCLPID(48): Player.Inventory.Upgrade(Player);
                 TCLPID(52): Shop.BuyItem(Player);

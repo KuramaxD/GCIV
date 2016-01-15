@@ -305,8 +305,11 @@ begin
           Write(#$01#$00#$00#$00#$64#$02#$00#$00#$00#$64);
           WriteCd(Dword(Pets.Pets[i].EXP));
           WriteCd(Dword(Pets.Pets[i].Level));
-          Write(#$00);
-          WriteCd(Dword(Pets.GetPetTransform(Pets.Pets[i].ItemID)));
+          Write(Pets.Pets[i].EVO);
+          if Pets.GetPetTransform(Pets.Pets[i].ItemID) = Pets.Pets[i].ItemID then
+            Write(#$FF#$FF#$FF#$FF)
+          else
+            WriteCd(Dword(Pets.GetPetTransform(Pets.Pets[i].ItemID)));
           WriteCd(Dword(Pets.Pets[i].Health));
           WriteCd(Dword(Pets.Pets[i].Health));
           if (Pets.Pets[i].Slot1 > 0) and (Pets.Pets[i].Slot2 > 0) then
