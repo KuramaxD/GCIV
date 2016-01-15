@@ -40,6 +40,7 @@ implementation
 uses Player, GlobalDefs, Inventory;
 
 constructor TCharacters.Create(MySQL: TQuery; AccInfo: TAccountInfo);
+  var i: Integer;
 begin
   Self.MySQL:=MySQL;
   Self.AccInfo:=AccInfo;
@@ -56,58 +57,22 @@ begin
       Chars[Length(Chars)-1].SWeapon:=Boolean(MySQL.Query.Fields[4].AsInteger);
       Chars[Length(Chars)-1].SWeaponID:=MySQL.Query.Fields[5].AsInteger;
       Chars[Length(Chars)-1].Pet:=MySQL.Query.Fields[6].AsInteger;
-
-      if MySQL.Query.Fields[0].AsInteger = 1 then begin
-        SetLength(Chars[Length(Chars)-1].Equips,15);
-        Chars[Length(Chars)-1].Equips[0].ID:=609;
-        Chars[Length(Chars)-1].Equips[0].ItemID:=391330;
-
-        Chars[Length(Chars)-1].Equips[1].ID:=610;
-        Chars[Length(Chars)-1].Equips[1].ItemID:=391310;
-
-        Chars[Length(Chars)-1].Equips[2].ID:=611;
-        Chars[Length(Chars)-1].Equips[2].ItemID:=391300;
-
-        Chars[Length(Chars)-1].Equips[3].ID:=612;
-        Chars[Length(Chars)-1].Equips[3].ItemID:=391290;
-
-        Chars[Length(Chars)-1].Equips[4].ID:=613;
-        Chars[Length(Chars)-1].Equips[4].ItemID:=391340;
-
-        Chars[Length(Chars)-1].Equips[5].ID:=614;
-        Chars[Length(Chars)-1].Equips[5].ItemID:=418900;
-
-        Chars[Length(Chars)-1].Equips[6].ID:=619;
-        Chars[Length(Chars)-1].Equips[6].ItemID:=391320;
-
-        Chars[Length(Chars)-1].Equips[7].ID:=620;
-        Chars[Length(Chars)-1].Equips[7].ItemID:=501310;
-
-        Chars[Length(Chars)-1].Equips[8].ID:=621;
-        Chars[Length(Chars)-1].Equips[8].ItemID:=501350;
-
-        Chars[Length(Chars)-1].Equips[9].ID:=622;
-        Chars[Length(Chars)-1].Equips[9].ItemID:=501340;
-
-        Chars[Length(Chars)-1].Equips[10].ID:=623;
-        Chars[Length(Chars)-1].Equips[10].ItemID:=501330;
-
-        Chars[Length(Chars)-1].Equips[11].ID:=624;
-        Chars[Length(Chars)-1].Equips[11].ItemID:=501320;
-
-        Chars[Length(Chars)-1].Equips[12].ID:=626;
-        Chars[Length(Chars)-1].Equips[12].ItemID:=9860;
-
-        Chars[Length(Chars)-1].Equips[13].ID:=627;
-        Chars[Length(Chars)-1].Equips[13].ItemID:=9080;
-
-        Chars[Length(Chars)-1].Equips[13].ID:=629;
-        Chars[Length(Chars)-1].Equips[13].ItemID:=150490;
-      end;
-
-
       MySQL.Query.Next;
     end;
+  // Define itens equipados
+  begin
+    MySQL.SetQuery('SELECT ITEMUID, ITEMID, CHARTYPE FROM EQUIPITEM WHERE UID = :ID ORDER BY CHARTYPE ASC');
+    MySQL.AddParameter('ID', AnsiString(IntToStr(AccInfo.ID)));
+    MySQL.Run(1);
+    if MySQL.Query.IsEmpty = False then
+      while MySQL.Query.Eof = False do begin
+        i:=MySQL.Query.Fields[2].AsInteger;
+        SetLength(Chars[i].Equips, Length(Chars[i].Equips)+1);
+        Chars[i].Equips[Length(Chars[i].Equips)-1].ID:=MySQL.Query.Fields[0].AsInteger;
+        Chars[i].Equips[Length(Chars[i].Equips)-1].ItemID:=MySQL.Query.Fields[1].AsInteger;
+        MySQL.Query.Next;
+      end;
+  end;
 end;
 
 function TCharacters.isChar(ID: Integer): Boolean;
