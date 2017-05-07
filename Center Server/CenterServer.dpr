@@ -38,10 +38,10 @@ begin
     Logger.Write('Iniciando servidor',ServerStatus);
     try
       Server:=TServer.Create(9501);
-      if Server.Socket.Active = True then begin
+      if (Server.Socket<>nil) and (Server.Socket.Active) then begin
         TimeInit:=MilliSecondsBetween(Now, UpTime);
         Logger.Write('Servidor levou ' + IntToStr(TimeInit) + ' milisegundos para carregar(aprox: ' + FloatToStr(TimeInit/1000) +' segundos).', Warnings);
-      end;
+      end else exit;
     except
       on E : Exception do
         Logger.Write(E.ClassName,Errors);
